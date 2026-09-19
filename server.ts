@@ -42,6 +42,27 @@ interface RateLimitRecord {
 const ipRateLimitMap = new Map<string, RateLimitRecord>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 const MAX_REQUESTS_PER_WINDOW = 120; // 120 requests per min
+const MAX_TRACKED_RATE_LIMIT_CLIENTS = 10_000;
+
+/** Removes expired client buckets and bounds memory under distributed traffic. */
+export function pruneRateLimitRecords(
+  records: Map<string, RateLimitRecord>,
+  now = Date.now(),
+  maximumSize = MAX_TRACKED_RATE_LIMIT_CLIENTS
+): void {
+  for (const [ip, record] of records) {
+    if (record.resetTime <= now) records.delete(ip);
+  }
+  if (records.size <= maximumSize) return;
+
+  // Map iteration is insertion ordered. Evicting the oldest retained buckets is O(excess)
+  // rather than sorting every client record on an untrusted request path.
+  while (records.size > maximumSize) {
+    const oldestIp = records.keys().next().value;
+    if (oldestIp === undefined) break;
+    records.delete(oldestIp);
+  }
+}
 
 const apiRateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (!req.path.startsWith('/api')) return next();
@@ -50,6 +71,10 @@ const apiRateLimiter = (req: express.Request, res: express.Response, next: expre
 
   const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown-ip';
   const now = Date.now();
+  // Prune only when a new client arrives, keeping the hot request path inexpensive.
+  if (!ipRateLimitMap.has(clientIp)) {
+    pruneRateLimitRecords(ipRateLimitMap, now);
+  }
   const record = ipRateLimitMap.get(clientIp);
 
   if (!record || now > record.resetTime) {
@@ -91,17 +116,38 @@ export function isSafeWebhookUrl(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   try {
     const url = new URL(value);
-    const hostname = url.hostname.toLowerCase();
+    const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    const privateIpv4 = /^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(hostname);
+    const privateIpv6 = hostname === '::1' || hostname === '::' ||
+      hostname.startsWith('fe80:') || hostname.startsWith('fc') || hostname.startsWith('fd');
     return url.protocol === 'https:' &&
-      hostname !== 'localhost' &&
-      hostname !== '::1' &&
-      !hostname.startsWith('127.') &&
-      !hostname.startsWith('10.') &&
-      !hostname.startsWith('192.168.') &&
-      !hostname.startsWith('169.254.');
+      !url.username && !url.password &&
+      hostname !== 'localhost' && !hostname.endsWith('.localhost') &&
+      !privateIpv4 && !privateIpv6;
   } catch {
     return false;
   }
+}
+
+const MAX_INLINE_DATA_BYTES = 12 * 1024 * 1024;
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ALLOWED_AUDIO_MIME_TYPES = new Set(['audio/webm', 'audio/wav', 'audio/mpeg', 'audio/mp4']);
+
+/** Validates base64 media before it reaches the model, protecting latency and token spend. */
+export function isSafeInlineMedia(
+  media: unknown,
+  allowedMimeTypes: ReadonlySet<string>,
+  maxBytes = MAX_INLINE_DATA_BYTES
+): media is { data: string; mimeType?: string } {
+  if (!media || typeof media !== 'object') return false;
+  const { data, mimeType } = media as { data?: unknown; mimeType?: unknown };
+  if (typeof data !== 'string' || !data || data.length > Math.ceil(maxBytes * 4 / 3)) return false;
+  if (mimeType !== undefined && (typeof mimeType !== 'string' || !allowedMimeTypes.has(mimeType))) return false;
+  return /^[A-Za-z0-9+/]*={0,2}$/.test(data);
+}
+
+function safeProfileField(value: unknown, fallback: string, maxLength = 120): string {
+  return safePromptText(value, maxLength) || fallback;
 }
 
 // In-memory caregiver dispatch log for the session
@@ -231,8 +277,14 @@ app.post('/api/analyze', async (req, res) => {
     const { text, image, audio, userProfile } = req.body;
     const safeText = safePromptText(text);
 
-    if (!safeText && !image?.data && !audio?.data) {
-      res.status(400).json({ error: 'Please provide either text, an image, or audio input.' });
+    const hasSafeImage = image?.data && isSafeInlineMedia(image, ALLOWED_IMAGE_MIME_TYPES);
+    const hasSafeAudio = audio?.data && isSafeInlineMedia(audio, ALLOWED_AUDIO_MIME_TYPES);
+    if (!safeText && !hasSafeImage && !hasSafeAudio) {
+      res.status(400).json({ error: 'Please provide text or a valid image/audio file under 12 MB.' });
+      return;
+    }
+    if ((image?.data && !hasSafeImage) || (audio?.data && !hasSafeAudio)) {
+      res.status(400).json({ error: 'Unsupported or malformed media. Use JPEG, PNG, WebP, WebM, WAV, MP3, or MP4.' });
       return;
     }
 
@@ -240,7 +292,7 @@ app.post('/api/analyze', async (req, res) => {
 
     const parts: any[] = [];
 
-    if (image?.data) {
+    if (hasSafeImage) {
       parts.push({
         inlineData: {
           mimeType: image.mimeType || 'image/jpeg',
@@ -249,7 +301,7 @@ app.post('/api/analyze', async (req, res) => {
       });
     }
 
-    if (audio?.data) {
+    if (hasSafeAudio) {
       parts.push({
         inlineData: {
           mimeType: audio.mimeType || 'audio/webm',
@@ -266,12 +318,13 @@ app.post('/api/analyze', async (req, res) => {
       text: promptText,
     });
 
-    const seniorName = userProfile?.name || 'Ramesh';
-    const seniorGreeting = userProfile?.preferredGreeting || 'Ramesh Ji';
-    const seniorAge = userProfile?.age || 71;
-    const caregiverName = userProfile?.caregiver?.name || 'Priya';
-    const caregiverRel = userProfile?.caregiver?.relationship || 'Daughter';
-    const targetLanguage = req.body.currentLanguage || userProfile?.appLanguage || 'Hindi';
+    const seniorName = safeProfileField(userProfile?.name, 'Ramesh');
+    const seniorGreeting = safeProfileField(userProfile?.preferredGreeting, 'Ramesh Ji');
+    const requestedAge = Number(userProfile?.age);
+    const seniorAge = Number.isInteger(requestedAge) && requestedAge >= 50 && requestedAge <= 120 ? requestedAge : 71;
+    const caregiverName = safeProfileField(userProfile?.caregiver?.name, 'Priya');
+    const caregiverRel = safeProfileField(userProfile?.caregiver?.relationship, 'Daughter');
+    const targetLanguage = safeProfileField(req.body.currentLanguage || userProfile?.appLanguage, 'Hindi', 40);
 
     const systemInstruction = `You are Sahayak AI (Aura), an autonomous multimodal life and safety companion engineered specifically for older adults.
 You are currently assisting ${seniorName} (prefers to be addressed as "${seniorGreeting}", age ${seniorAge}).
@@ -396,8 +449,10 @@ OPERATIONAL INSTRUCTIONS:
       } catch (err: any) {
         console.warn(`Model ${modelName} failed or busy:`, err?.message || err);
         lastError = err;
-        // Small delay before trying fallback model
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        // Back off only when another fallback remains; avoid needless latency on final failure.
+        if (modelName !== modelsToTry[modelsToTry.length - 1]) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
       }
     }
 

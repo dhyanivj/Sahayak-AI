@@ -204,6 +204,7 @@ export default function App() {
     let unsubAlerts: (() => void) | null = null;
     let unsubMedicines: (() => void) | null = null;
 
+    const historyRequest = new AbortController();
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
 
@@ -272,8 +273,8 @@ export default function App() {
         });
       } else {
         // Fall back to local storage and server session when not logged in
-        fetch('/api/caregiver-history')
-          .then((res) => res.json())
+        fetch('/api/caregiver-history', { signal: historyRequest.signal })
+          .then((res) => res.ok ? res.json() : Promise.reject(new Error(`History request failed: ${res.status}`)))
           .then((data) => {
             if (data.dispatches && Array.isArray(data.dispatches)) {
               setDispatches(data.dispatches);
@@ -284,6 +285,7 @@ export default function App() {
     });
 
     return () => {
+      historyRequest.abort();
       unsubscribeAuth();
       if (unsubProfile) unsubProfile();
       if (unsubRecords) unsubRecords();
@@ -410,9 +412,15 @@ export default function App() {
         ? `data:${data.image.mimeType};base64,${data.image.data}`
         : undefined;
 
+      // Keep the full image only while its result is on screen. Persisting base64 images in
+      // every history entry multiplies local-storage, memory, and Firestore sync costs.
       const fullResult: SahayakActionPayload = {
         ...result,
         sourceImage: sourceImageDataUrl,
+      };
+      const historyPayload: SahayakActionPayload = {
+        ...fullResult,
+        sourceImage: undefined,
       };
 
       setCurrentPayload(fullResult);
@@ -426,8 +434,7 @@ export default function App() {
         mode: fullResult.mode,
         is_urgent_or_scam: fullResult.is_urgent_or_scam,
         inputText: data.text,
-        thumbnailUrl: sourceImageDataUrl,
-        payload: fullResult,
+        payload: historyPayload,
       };
 
       // Save to local state
@@ -568,12 +575,11 @@ export default function App() {
   const handleClearHistory = async () => {
     if (confirm('Clear your scanned document history?')) {
       if (currentUser) {
-        for (const record of scannedRecords) {
-          try {
-            await deleteScannedRecordFromFirestore(currentUser.uid, record.id);
-          } catch (e) {
-            console.warn(e);
-          }
+        const results = await Promise.allSettled(
+          scannedRecords.map((record) => deleteScannedRecordFromFirestore(currentUser.uid, record.id))
+        );
+        for (const result of results) {
+          if (result.status === 'rejected') console.warn(result.reason);
         }
       }
       setScannedRecords([]);
