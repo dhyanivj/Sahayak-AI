@@ -1,0 +1,251 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile and safety settings for the elderly user",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "name": {
+          "type": "string",
+          "description": "User's full name",
+          "maxLength": 100
+        },
+        "preferredGreeting": {
+          "type": "string",
+          "description": "Preferred greeting (e.g., Uncle, Mr. Sharma, Dad)",
+          "maxLength": 100
+        },
+        "age": {
+          "type": "number",
+          "description": "User's age"
+        },
+        "primaryConcern": {
+          "type": "string",
+          "description": "Primary area of concern",
+          "enum": ["scams", "medications", "clarity", "all"]
+        },
+        "fontSizeMode": {
+          "type": "string",
+          "description": "Display font size preference",
+          "enum": ["normal", "large"]
+        },
+        "speechRate": {
+          "type": "number",
+          "description": "Spoken readout speed"
+        },
+        "caregiverName": {
+          "type": "string",
+          "description": "Trusted contact name",
+          "maxLength": 100
+        },
+        "caregiverRelationship": {
+          "type": "string",
+          "description": "Relationship to user",
+          "maxLength": 100
+        },
+        "caregiverPhone": {
+          "type": "string",
+          "description": "Emergency telephone number",
+          "maxLength": 30
+        },
+        "hasCompletedOnboarding": {
+          "type": "boolean",
+          "description": "Whether onboarding has been completed"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": ["userId", "name", "fontSizeMode", "speechRate", "hasCompletedOnboarding"]
+    },
+    "ScannedRecord": {
+      "title": "ScannedRecord",
+      "description": "Log of items, documents, prescriptions, or speech checked by the user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique scan record ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID of owner"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "ISO timestamp of the inspection"
+        },
+        "headline": {
+          "type": "string",
+          "description": "Plain language conclusion headline",
+          "maxLength": 300
+        },
+        "urgency": {
+          "type": "string",
+          "description": "Urgency classification",
+          "enum": ["routine", "urgent"]
+        },
+        "actionCategory": {
+          "type": "string",
+          "description": "Category of the item",
+          "enum": ["scam_defense", "medical_advisory", "routine_life", "smart_home", "family_memory"]
+        },
+        "confidenceReason": {
+          "type": "string",
+          "description": "Explanation of the analysis",
+          "maxLength": 500
+        },
+        "bullets": {
+          "type": "array",
+          "description": "Recommended next steps"
+        },
+        "voiceReadout": {
+          "type": "string",
+          "description": "Spoken explanation transcript",
+          "maxLength": 2000
+        },
+        "caregiverAlert": {
+          "type": "string",
+          "description": "Alert text for family",
+          "maxLength": 1000
+        },
+        "querySnippet": {
+          "type": "string",
+          "description": "Snippet of input text",
+          "maxLength": 500
+        }
+      },
+      "required": ["id", "userId", "timestamp", "headline", "urgency", "actionCategory", "bullets", "voiceReadout"]
+    },
+    "CaregiverAlert": {
+      "title": "CaregiverAlert",
+      "description": "Record of notifications and alerts sent to family or caregivers",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique alert ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID of owner"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "ISO timestamp of alert creation"
+        },
+        "recipientName": {
+          "type": "string",
+          "description": "Name of contact notified",
+          "maxLength": 100
+        },
+        "recipientPhone": {
+          "type": "string",
+          "description": "Phone number notified",
+          "maxLength": 30
+        },
+        "headline": {
+          "type": "string",
+          "description": "Headline of the associated item",
+          "maxLength": 300
+        },
+        "alertMessage": {
+          "type": "string",
+          "description": "Message sent to contact",
+          "maxLength": 1000
+        },
+        "status": {
+          "type": "string",
+          "description": "Dispatch status",
+          "enum": ["dispatched", "acknowledged"]
+        },
+        "channel": {
+          "type": "string",
+          "description": "Delivery channel",
+          "enum": ["in_app", "whatsapp", "sms", "call"]
+        }
+      },
+      "required": ["id", "userId", "timestamp", "recipientName", "recipientPhone", "headline", "alertMessage", "status"]
+    },
+    "MedicineItem": {
+      "title": "MedicineItem",
+      "description": "Prescription or over-the-counter medicine tracked in the elder's daily routine",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique medicine identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID"
+        },
+        "name": {
+          "type": "string",
+          "description": "Medicine name and strength",
+          "maxLength": 150
+        },
+        "purpose": {
+          "type": "string",
+          "description": "What this medicine is for in simple language",
+          "maxLength": 200
+        },
+        "timing": {
+          "type": "string",
+          "description": "When to take",
+          "enum": ["morning", "afternoon", "evening", "night", "as_needed"]
+        },
+        "instructions": {
+          "type": "string",
+          "description": "Special instructions (e.g. after food)",
+          "maxLength": 300
+        },
+        "cautions": {
+          "type": "string",
+          "description": "Elder caution or side effect note",
+          "maxLength": 300
+        },
+        "takenToday": {
+          "type": "boolean",
+          "description": "Whether taken today"
+        },
+        "addedAt": {
+          "type": "string",
+          "description": "ISO timestamp when added"
+        }
+      },
+      "required": ["id", "userId", "name", "timing"]
+    }
+  },
+  "firestore": {
+    "/userProfiles/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "User profile document containing preferences and trusted contact info"
+    },
+    "/userProfiles/{userId}/scannedRecords/{recordId}": {
+      "schema": {
+        "$ref": "#/entities/ScannedRecord"
+      },
+      "description": "Past checked documents, pills, or questions for this user"
+    },
+    "/userProfiles/{userId}/caregiverAlerts/{alertId}": {
+      "schema": {
+        "$ref": "#/entities/CaregiverAlert"
+      },
+      "description": "Log of alerts sent to family for this user"
+    },
+    "/userProfiles/{userId}/medicines/{medicineId}": {
+      "schema": {
+        "$ref": "#/entities/MedicineItem"
+      },
+      "description": "User's active daily medicine routine and schedule"
+    }
+  }
+}

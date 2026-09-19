@@ -9,6 +9,7 @@ import { SingleFrontDoor } from './components/SingleFrontDoor';
 import { ReactiveResultCard } from './components/ReactiveResultCard';
 import { CaregiverLogModal } from './components/CaregiverLogModal';
 import { ScannedHistoryModal } from './components/ScannedHistoryModal';
+import { MedicineCabinetModal } from './components/MedicineCabinetModal';
 import { OfflineBanner } from './components/OfflineBanner';
 import {
   CaregiverContact,
@@ -16,20 +17,41 @@ import {
   SahayakActionPayload,
   UserProfile,
   ScannedRecord,
+  MedicineItem,
 } from './types';
+import {
+  auth,
+  testConnection,
+  loginWithGoogle,
+  logoutUser,
+  onAuthStateChanged,
+  FirebaseUser,
+  saveUserProfileToFirestore,
+  subscribeUserProfile,
+  saveScannedRecordToFirestore,
+  subscribeScannedRecords,
+  deleteScannedRecordFromFirestore,
+  saveCaregiverAlertToFirestore,
+  subscribeCaregiverAlerts,
+  saveMedicineToFirestore,
+  subscribeMedicines,
+  deleteMedicineFromFirestore,
+  toggleMedicineTakenInFirestore,
+} from './lib/firebase';
+import { Cloud, LogIn } from 'lucide-react';
 
-// Default starter profile
+// Clean starter profile without hardcoded mock data
 const defaultProfile: UserProfile = {
-  name: 'Ramesh Sharma',
-  preferredGreeting: 'Ramesh Ji',
-  age: 71,
+  name: '',
+  preferredGreeting: '',
+  age: 70,
   primaryConcern: 'all',
   fontSizeMode: 'normal',
   speechRate: 0.85,
   caregiver: {
-    name: 'Priya',
-    relationship: 'Daughter (Emergency Contact)',
-    phone: '+1 (555) 019-2834',
+    name: '',
+    relationship: '',
+    phone: '',
   },
   hasCompletedOnboarding: false,
 };
@@ -69,6 +91,8 @@ function playGentleChime(type: 'success' | 'alert' = 'success') {
 }
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+
   const [userProfile, setUserProfile] = useState<UserProfile>(() => {
     try {
       const saved = localStorage.getItem('sahayak_user_profile');
@@ -93,9 +117,9 @@ export default function App() {
 
   const [caregiverContact, setCaregiverContact] = useState<CaregiverContact>(
     userProfile.caregiver || {
-      name: 'Priya',
-      relationship: 'Daughter (Emergency Contact)',
-      phone: '+1 (555) 019-2834',
+      name: '',
+      relationship: '',
+      phone: '',
     }
   );
 
@@ -118,35 +142,159 @@ export default function App() {
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [isCaregiverModalOpen, setIsCaregiverModalOpen] = useState(false);
   const [isScannedHistoryOpen, setIsScannedHistoryOpen] = useState(false);
+  const [isMedicineCabinetOpen, setIsMedicineCabinetOpen] = useState(false);
   const [isSendingAlert, setIsSendingAlert] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
 
-  // Sync profile preferences when profile changes
-  const handleSaveProfile = (updated: UserProfile) => {
+  const [medicines, setMedicines] = useState<MedicineItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('sahayak_medicines');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Could not read medicines from local storage', e);
+    }
+    return [];
+  });
+
+  // Initialize Firebase Auth & Real-Time Firestore Sync
+  useEffect(() => {
+    testConnection();
+
+    let unsubProfile: (() => void) | null = null;
+    let unsubRecords: (() => void) | null = null;
+    let unsubAlerts: (() => void) | null = null;
+    let unsubMedicines: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+
+      // Clean up previous subscriptions if any
+      if (unsubProfile) {
+        unsubProfile();
+        unsubProfile = null;
+      }
+      if (unsubRecords) {
+        unsubRecords();
+        unsubRecords = null;
+      }
+      if (unsubAlerts) {
+        unsubAlerts();
+        unsubAlerts = null;
+      }
+      if (unsubMedicines) {
+        unsubMedicines();
+        unsubMedicines = null;
+      }
+
+      if (user) {
+        // Subscribe to remote profile from Firestore
+        unsubProfile = subscribeUserProfile(user.uid, (remoteProfile) => {
+          if (remoteProfile && remoteProfile.name) {
+            setUserProfile(remoteProfile);
+            setFontSizeMode(remoteProfile.fontSizeMode);
+            setSpeechRate(remoteProfile.speechRate);
+            setCaregiverContact(remoteProfile.caregiver);
+          } else {
+            // First time login with an existing local profile: migrate to Firestore
+            setUserProfile((current) => {
+              if (current.name && current.hasCompletedOnboarding) {
+                saveUserProfileToFirestore(user.uid, current).catch(console.warn);
+              }
+              return current;
+            });
+          }
+        });
+
+        // Subscribe to user's scanned items from Firestore
+        unsubRecords = subscribeScannedRecords(user.uid, (records) => {
+          setScannedRecords(records);
+          try {
+            localStorage.setItem('sahayak_scanned_history', JSON.stringify(records.slice(0, 30)));
+          } catch (e) {
+            console.warn(e);
+          }
+        });
+
+        // Subscribe to user's caregiver alerts from Firestore
+        unsubAlerts = subscribeCaregiverAlerts(user.uid, (alerts) => {
+          setDispatches(alerts);
+        });
+
+        // Subscribe to user's daily medicines from Firestore
+        unsubMedicines = subscribeMedicines(user.uid, (meds) => {
+          setMedicines(meds);
+          try {
+            localStorage.setItem('sahayak_medicines', JSON.stringify(meds));
+          } catch (e) {
+            console.warn(e);
+          }
+        });
+      } else {
+        // Fall back to local storage and server session when not logged in
+        fetch('/api/caregiver-history')
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.dispatches && Array.isArray(data.dispatches)) {
+              setDispatches(data.dispatches);
+            }
+          })
+          .catch((err) => console.warn('Could not load caregiver history:', err));
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubProfile) unsubProfile();
+      if (unsubRecords) unsubRecords();
+      if (unsubAlerts) unsubAlerts();
+      if (unsubMedicines) unsubMedicines();
+    };
+  }, []);
+
+  // Save profile changes (both to Firestore and local cache)
+  const handleSaveProfile = async (updated: UserProfile) => {
     setUserProfile(updated);
     setFontSizeMode(updated.fontSizeMode);
     setSpeechRate(updated.speechRate);
     setCaregiverContact(updated.caregiver);
     setIsEditingProfile(false);
+
     try {
       localStorage.setItem('sahayak_user_profile', JSON.stringify(updated));
     } catch (e) {
       console.warn('Could not save user profile to localStorage', e);
     }
+
+    if (currentUser) {
+      try {
+        await saveUserProfileToFirestore(currentUser.uid, updated);
+      } catch (e) {
+        console.warn('Could not sync user profile to Firestore', e);
+      }
+    }
     playGentleChime('success');
   };
 
-  // Load existing dispatches on startup
-  useEffect(() => {
-    fetch('/api/caregiver-history')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.dispatches && Array.isArray(data.dispatches)) {
-          setDispatches(data.dispatches);
-        }
-      })
-      .catch((err) => console.warn('Could not load caregiver history:', err));
-  }, []);
+  const handleLogin = async () => {
+    try {
+      await loginWithGoogle();
+      playGentleChime('success');
+    } catch (error) {
+      console.error('Sign-in failed:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      playGentleChime('success');
+    } catch (error) {
+      console.error('Sign-out failed:', error);
+    }
+  };
 
   // Main Analyze action
   const handleAnalyze = async (data: {
@@ -188,19 +336,21 @@ export default function App() {
       setCurrentPayload(fullResult);
       playGentleChime(fullResult.is_urgent_or_scam ? 'alert' : 'success');
 
-      // Save to Scanned Records History
+      // Create new record
       const newRecord: ScannedRecord = {
         id: `SCAN-${Date.now()}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         headline: fullResult.headline,
         mode: fullResult.mode,
         is_urgent_or_scam: fullResult.is_urgent_or_scam,
+        inputText: data.text,
         thumbnailUrl: sourceImageDataUrl,
         payload: fullResult,
       };
 
+      // Save to local state
       setScannedRecords((prev) => {
-        const updated = [newRecord, ...prev];
+        const updated = [newRecord, ...prev.filter((r) => r.id !== newRecord.id)];
         try {
           localStorage.setItem('sahayak_scanned_history', JSON.stringify(updated.slice(0, 30)));
         } catch (err) {
@@ -208,6 +358,15 @@ export default function App() {
         }
         return updated;
       });
+
+      // Save to Firebase Firestore if logged in
+      if (currentUser) {
+        try {
+          await saveScannedRecordToFirestore(currentUser.uid, newRecord);
+        } catch (err) {
+          console.warn('Could not save record to Firestore:', err);
+        }
+      }
 
       // Smooth scroll to top for immediate viewing
       setTimeout(() => {
@@ -225,7 +384,7 @@ export default function App() {
     }
   };
 
-  // Dispatch caregiver alert webhook
+  // Dispatch caregiver alert
   const handleSendCaregiverAlert = async (
     alertText: string,
     headline: string
@@ -255,19 +414,28 @@ export default function App() {
       const resData = await response.json();
       if (resData.dispatch) {
         setDispatches((prev) => [resData.dispatch, ...prev]);
+
+        // Save to Firebase Firestore if logged in
+        if (currentUser) {
+          try {
+            await saveCaregiverAlertToFirestore(currentUser.uid, resData.dispatch);
+          } catch (err) {
+            console.warn('Could not save alert to Firestore:', err);
+          }
+        }
       }
       playGentleChime('success');
       return true;
     } catch (err: any) {
       console.error('Caregiver notification error:', err);
-      alert(`Could not dispatch alert. You can call ${caregiverContact.name} directly using the phone button.`);
+      alert(`Could not dispatch alert. You can call ${caregiverContact.name || 'family'} directly using the phone button.`);
       return false;
     } finally {
       setIsSendingAlert(false);
     }
   };
 
-  // Manual test ping to caregiver webhook
+  // Manual test ping
   const handleSendManualTestAlert = async () => {
     setIsSendingTest(true);
     try {
@@ -278,10 +446,10 @@ export default function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          headline: `Manual Test Ping from ${seniorGreeting}`,
+          headline: `Daily Check-In from ${seniorGreeting}`,
           mode: 'SMART_ASSIST',
           is_urgent: false,
-          alertMessage: `Daily check-in: ${seniorGreeting} has active Sahayak AI companion running smoothly.`,
+          alertMessage: `Daily check-in: ${seniorGreeting} has active Sahayak companion running smoothly.`,
           recipient: caregiverContact,
         }),
       });
@@ -290,6 +458,13 @@ export default function App() {
         const resData = await response.json();
         if (resData.dispatch) {
           setDispatches((prev) => [resData.dispatch, ...prev]);
+          if (currentUser) {
+            try {
+              await saveCaregiverAlertToFirestore(currentUser.uid, resData.dispatch);
+            } catch (err) {
+              console.warn('Could not save alert to Firestore:', err);
+            }
+          }
         }
         playGentleChime('success');
       }
@@ -308,8 +483,17 @@ export default function App() {
     setNetworkError(null);
   };
 
-  const handleClearHistory = () => {
+  const handleClearHistory = async () => {
     if (confirm('Clear your scanned document history?')) {
+      if (currentUser) {
+        for (const record of scannedRecords) {
+          try {
+            await deleteScannedRecordFromFirestore(currentUser.uid, record.id);
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+      }
       setScannedRecords([]);
       localStorage.removeItem('sahayak_scanned_history');
     }
@@ -321,6 +505,81 @@ export default function App() {
     setTimeout(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }, 100);
+  };
+
+  // Medicine Management Handlers
+  const handleAddMedicine = async (
+    medData: Omit<MedicineItem, 'id' | 'userId' | 'addedAt'>
+  ) => {
+    const newMed: MedicineItem = {
+      ...medData,
+      id: `MED-${Date.now()}`,
+      userId: currentUser ? currentUser.uid : 'local-user',
+      addedAt: new Date().toISOString(),
+    };
+
+    setMedicines((prev) => {
+      const updated = [
+        newMed,
+        ...prev.filter((m) => m.name.toLowerCase() !== newMed.name.toLowerCase()),
+      ];
+      try {
+        localStorage.setItem('sahayak_medicines', JSON.stringify(updated));
+      } catch (e) {
+        console.warn(e);
+      }
+      return updated;
+    });
+
+    if (currentUser) {
+      try {
+        await saveMedicineToFirestore(currentUser.uid, newMed);
+      } catch (e) {
+        console.warn('Failed to save medicine to Firestore', e);
+      }
+    }
+    playGentleChime('success');
+  };
+
+  const handleDeleteMedicine = async (medicineId: string) => {
+    setMedicines((prev) => {
+      const updated = prev.filter((m) => m.id !== medicineId);
+      try {
+        localStorage.setItem('sahayak_medicines', JSON.stringify(updated));
+      } catch (e) {
+        console.warn(e);
+      }
+      return updated;
+    });
+
+    if (currentUser) {
+      try {
+        await deleteMedicineFromFirestore(currentUser.uid, medicineId);
+      } catch (e) {
+        console.warn('Failed to delete medicine from Firestore', e);
+      }
+    }
+  };
+
+  const handleToggleMedicineTaken = async (medicineId: string, takenToday: boolean) => {
+    setMedicines((prev) => {
+      const updated = prev.map((m) => (m.id === medicineId ? { ...m, takenToday } : m));
+      try {
+        localStorage.setItem('sahayak_medicines', JSON.stringify(updated));
+      } catch (e) {
+        console.warn(e);
+      }
+      return updated;
+    });
+
+    if (currentUser) {
+      try {
+        await toggleMedicineTakenInFirestore(currentUser.uid, medicineId, takenToday);
+      } catch (e) {
+        console.warn('Failed to toggle medicine taken in Firestore', e);
+      }
+    }
+    playGentleChime(takenToday ? 'success' : 'alert');
   };
 
   const showOnboarding = !userProfile.hasCompletedOnboarding || isEditingProfile;
@@ -341,11 +600,43 @@ export default function App() {
         onEditProfile={() => setIsEditingProfile(true)}
         scannedCount={scannedRecords.length}
         onOpenScannedHistory={() => setIsScannedHistoryOpen(true)}
+        medicineCount={medicines.length}
+        onOpenMedicineCabinet={() => setIsMedicineCabinetOpen(true)}
+        currentUser={currentUser}
+        onLogin={handleLogin}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
         
+        {/* Firebase Cloud Sync Prompt Banner if not logged in */}
+        {!currentUser && userProfile.hasCompletedOnboarding && (
+          <div className="mb-6 p-3.5 rounded-md border border-neutral-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded border border-neutral-200 bg-neutral-50 flex items-center justify-center shrink-0 text-neutral-800">
+                <Cloud className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-neutral-900">
+                  Save your safety checks to the Cloud
+                </p>
+                <p className="text-xs text-neutral-500">
+                  Sign in with Google to securely store your history, medicines, and emergency contacts in Firebase.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogin}
+              className="h-8 px-3 rounded-md bg-neutral-900 hover:bg-black text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer self-start sm:self-auto shrink-0 select-none"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Sign in with Google</span>
+            </button>
+          </div>
+        )}
+
         {/* Offline / Connection Error Banner */}
         {networkError && (
           <OfflineBanner
@@ -357,7 +648,7 @@ export default function App() {
           />
         )}
 
-        {/* View Routing: Form Before Landing Page, Reactive Result Card, or Single Front Door */}
+        {/* View Routing: Onboarding Form, Reactive Result Card, or Single Front Door */}
         {showOnboarding ? (
           <OnboardingForm
             initialProfile={userProfile}
@@ -376,6 +667,8 @@ export default function App() {
             isSendingAlert={isSendingAlert}
             userName={userProfile.name}
             preferredGreeting={userProfile.preferredGreeting}
+            onAddToMedicineCabinet={handleAddMedicine}
+            onOpenMedicineCabinet={() => setIsMedicineCabinetOpen(true)}
           />
         ) : (
           <SingleFrontDoor
@@ -390,16 +683,44 @@ export default function App() {
       </main>
 
       {/* Senior Safety Footer */}
-      <footer className="border-t border-[var(--color-border-base)] bg-[var(--color-surface)] py-5 text-center text-xs sm:text-sm font-bold text-[var(--color-ink-muted)]">
-        <div className="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2.5">
-          <p className="flex items-center gap-2">
-            <span>🛡️ Sahayak AI (Aura) • Multimodal Companion for {userProfile.preferredGreeting || userProfile.name}</span>
-          </p>
-          <p className="text-[var(--color-ink-subtle)] text-xs">
-            WCAG AAA High-Contrast Standard • Respectful Senior Care
-          </p>
+      <footer className="border-t border-neutral-200 bg-white py-4 text-xs text-neutral-500">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+            <span className="text-neutral-900 font-medium">Sahayak Elder Safety Companion</span>
+            <span className="text-neutral-300">·</span>
+            <span>Always here to help you</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {currentUser && (
+              <span className="flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
+                <Cloud className="w-3 h-3" />
+                Firebase Active
+              </span>
+            )}
+            <p className="text-neutral-500 text-xs">
+              Safe &amp; Private · Stored in Firebase Firestore
+            </p>
+          </div>
         </div>
       </footer>
+
+      {/* Daily Medicine Cabinet & AI Drug Interaction Watchdog Modal */}
+      <MedicineCabinetModal
+        isOpen={isMedicineCabinetOpen}
+        onClose={() => setIsMedicineCabinetOpen(false)}
+        medicines={medicines}
+        onAddMedicine={handleAddMedicine}
+        onDeleteMedicine={handleDeleteMedicine}
+        onToggleTaken={handleToggleMedicineTaken}
+        fontSizeMode={fontSizeMode}
+        speechRate={speechRate}
+        userName={userProfile.name}
+        preferredGreeting={userProfile.preferredGreeting}
+        onSendCaregiverAlert={(text: string, headline: string) =>
+          handleSendCaregiverAlert(text, headline)
+        }
+      />
 
       {/* Caregiver Alert Log & Emergency Contact Modal */}
       <CaregiverLogModal
@@ -409,14 +730,15 @@ export default function App() {
         contact={caregiverContact}
         onUpdateContact={(updated) => {
           setCaregiverContact(updated);
-          setUserProfile((prev) => ({ ...prev, caregiver: updated }));
+          const newProf = { ...userProfile, caregiver: updated };
+          setUserProfile(newProf);
           try {
-            localStorage.setItem(
-              'sahayak_user_profile',
-              JSON.stringify({ ...userProfile, caregiver: updated })
-            );
+            localStorage.setItem('sahayak_user_profile', JSON.stringify(newProf));
           } catch (e) {
             console.warn(e);
+          }
+          if (currentUser) {
+            saveUserProfileToFirestore(currentUser.uid, newProf).catch(console.warn);
           }
         }}
         onSendManualTestAlert={handleSendManualTestAlert}

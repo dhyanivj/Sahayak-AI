@@ -1,0 +1,123 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net: Default deny all unspecified collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['userId', 'name', 'fontSizeMode', 'speechRate', 'hasCompletedOnboarding'])
+        && data.userId == request.auth.uid
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.fontSizeMode in ['normal', 'large']
+        && data.speechRate is number && data.speechRate >= 0.5 && data.speechRate <= 2.0
+        && data.hasCompletedOnboarding is bool
+        && (!('age' in data) || (data.age is number && data.age >= 10 && data.age <= 120))
+        && (!('preferredGreeting' in data) || (data.preferredGreeting is string && data.preferredGreeting.size() <= 100))
+        && (!('primaryConcern' in data) || data.primaryConcern in ['scams', 'medications', 'clarity', 'all'])
+        && (!('caregiverName' in data) || (data.caregiverName is string && data.caregiverName.size() <= 100))
+        && (!('caregiverRelationship' in data) || (data.caregiverRelationship is string && data.caregiverRelationship.size() <= 100))
+        && (!('caregiverPhone' in data) || (data.caregiverPhone is string && data.caregiverPhone.size() <= 30))
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 50));
+    }
+
+    function isValidScannedRecord(data) {
+      return data.keys().hasAll(['id', 'userId', 'timestamp', 'headline', 'urgency', 'actionCategory', 'bullets', 'voiceReadout'])
+        && data.userId == request.auth.uid
+        && data.id is string && data.id.size() <= 128
+        && data.headline is string && data.headline.size() > 0 && data.headline.size() <= 300
+        && data.urgency in ['routine', 'urgent']
+        && data.actionCategory in ['scam_defense', 'medical_advisory', 'routine_life', 'smart_home', 'family_memory', 'HEALTH_PILL', 'SAFETY_BILL_SCAM', 'MEMORY_STIMULATION', 'SMART_ASSIST']
+        && data.bullets is list && data.bullets.size() <= 20
+        && data.voiceReadout is string && data.voiceReadout.size() <= 2000
+        && (!('confidenceReason' in data) || (data.confidenceReason is string && data.confidenceReason.size() <= 500))
+        && (!('caregiverAlert' in data) || (data.caregiverAlert is string && data.caregiverAlert.size() <= 1000))
+        && (!('querySnippet' in data) || (data.querySnippet is string && data.querySnippet.size() <= 500))
+        && (!('timestamp' in data) || (data.timestamp is string && data.timestamp.size() <= 50));
+    }
+
+    function isValidCaregiverAlert(data) {
+      return data.keys().hasAll(['id', 'userId', 'timestamp', 'recipientName', 'recipientPhone', 'headline', 'alertMessage', 'status'])
+        && data.userId == request.auth.uid
+        && data.id is string && data.id.size() <= 128
+        && data.recipientName is string && data.recipientName.size() <= 100
+        && data.recipientPhone is string && data.recipientPhone.size() <= 30
+        && data.headline is string && data.headline.size() <= 300
+        && data.alertMessage is string && data.alertMessage.size() <= 1000
+        && data.status in ['dispatched', 'acknowledged', 'SENT', 'FAILED']
+        && (!('channel' in data) || data.channel in ['in_app', 'whatsapp', 'sms', 'call'])
+        && (!('timestamp' in data) || (data.timestamp is string && data.timestamp.size() <= 50));
+    }
+
+    function isValidMedicineItem(data) {
+      return data.keys().hasAll(['id', 'userId', 'name', 'timing'])
+        && data.userId == request.auth.uid
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 150
+        && data.timing in ['morning', 'afternoon', 'evening', 'night', 'as_needed']
+        && (!('purpose' in data) || (data.purpose is string && data.purpose.size() <= 200))
+        && (!('instructions' in data) || (data.instructions is string && data.instructions.size() <= 300))
+        && (!('cautions' in data) || (data.cautions is string && data.cautions.size() <= 300))
+        && (!('takenToday' in data) || (data.takenToday is bool))
+        && (!('addedAt' in data) || (data.addedAt is string && data.addedAt.size() <= 50));
+    }
+
+    // User Profile
+    match /userProfiles/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming());
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming()) && incoming().userId == existing().userId;
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Scanned Records subcollection
+      match /scannedRecords/{recordId} {
+        allow get: if isOwner(userId) && isValidId(recordId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(recordId) && isValidScannedRecord(incoming()) && incoming().userId == userId;
+        allow update: if isOwner(userId) && isValidId(recordId) && isValidScannedRecord(incoming()) && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId) && isValidId(recordId);
+      }
+
+      // Caregiver Alerts subcollection
+      match /caregiverAlerts/{alertId} {
+        allow get: if isOwner(userId) && isValidId(alertId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(alertId) && isValidCaregiverAlert(incoming()) && incoming().userId == userId;
+        allow update: if isOwner(userId) && isValidId(alertId) && isValidCaregiverAlert(incoming()) && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId) && isValidId(alertId);
+      }
+
+      // Daily Medicines subcollection
+      match /medicines/{medicineId} {
+        allow get: if isOwner(userId) && isValidId(medicineId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(medicineId) && isValidMedicineItem(incoming()) && incoming().userId == userId;
+        allow update: if isOwner(userId) && isValidId(medicineId) && isValidMedicineItem(incoming()) && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId) && isValidId(medicineId);
+      }
+    }
+  }
+}

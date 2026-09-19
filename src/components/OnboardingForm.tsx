@@ -1,15 +1,9 @@
-/* Hallmark · macrostructure: elder-intake-docket · theme: warm-tactile-ink · genre: editorial
- * pre-emit critique: P5 H5 E5 S5 R5 V5
- * slop test: pass
- */
 import React, { useState } from 'react';
 import {
   User,
   HeartHandshake,
   Shield,
   Eye,
-  Volume2,
-  Sparkles,
   ArrowRight,
   Phone,
   Plus,
@@ -33,23 +27,6 @@ export const OnboardingForm: React.FC<OnboardingFormProps> = ({
 }) => {
   const [profile, setProfile] = useState<UserProfile>(initialProfile);
 
-  const quickStartRamesh = () => {
-    setProfile({
-      name: 'Ramesh Sharma',
-      preferredGreeting: 'Ramesh Ji',
-      age: 71,
-      primaryConcern: 'all',
-      fontSizeMode: 'normal',
-      speechRate: 0.85,
-      caregiver: {
-        name: 'Priya',
-        relationship: 'Daughter (Emergency Contact)',
-        phone: '+1 (555) 019-2834',
-      },
-      hasCompletedOnboarding: true,
-    });
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onComplete({
@@ -66,76 +43,53 @@ export const OnboardingForm: React.FC<OnboardingFormProps> = ({
   };
 
   const titleOptions = [
-    `${profile.name ? profile.name.split(' ')[0] : 'Ramesh'} Ji`,
-    'Mr. ' + (profile.name ? profile.name.split(' ').slice(-1)[0] : 'Sharma'),
+    profile.name ? `${profile.name.split(' ')[0]} Ji` : 'Sir / Ma’am',
+    profile.name ? (profile.name.split(' ').length > 1 ? `Mr. ${profile.name.split(' ').slice(-1)[0]}` : profile.name) : 'Mr. Sharma',
     'Uncle',
+    'Aunty',
     'Grandpa',
   ];
 
   return (
-    <div className="max-w-3xl mx-auto my-6 px-4">
+    <div className="max-w-2xl mx-auto my-6 px-4">
       
-      {/* Editorial Header */}
-      <div className="text-center mb-6 sm:mb-8 space-y-2">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--color-action-amber)] text-white shadow-xs mb-1">
-          <Shield className="w-7 h-7" />
+      {/* Header */}
+      <div className="text-center mb-6 space-y-1.5">
+        <div className="inline-flex items-center justify-center w-10 h-10 rounded border border-neutral-200 bg-neutral-50 text-neutral-900 mb-1">
+          <Shield className="w-5 h-5" />
         </div>
-        <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-[var(--color-ink-display)]">
-          {isEditing ? 'Update Your Personal Profile' : 'Welcome to Sahayak AI (Aura)'}
+        <div className="text-xs uppercase tracking-wider text-neutral-500 font-medium">
+          Getting Started
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-900">
+          {isEditing ? 'Your Profile & Settings' : 'Welcome to Sahayak'}
         </h1>
-        <p className="text-base sm:text-lg font-bold text-[var(--color-ink-muted)] max-w-xl mx-auto leading-relaxed">
+        <p className="text-xs sm:text-sm text-neutral-500 max-w-md mx-auto">
           {isEditing
-            ? 'Adjust your personal settings, display comfort, or emergency caregiver details.'
-            : 'Please share a few details so Aura can address you respectfully, speak at your pace, and safeguard your health.'}
+            ? 'Change your text size, voice reading speed, or emergency contact.'
+            : 'Set up your name, preferred text size, and trusted family contact.'}
         </p>
       </div>
 
-      {/* One-Tap Preset Banner for Quick Evaluation / Testing */}
-      {!isEditing && (
-        <div className="mb-6 p-4 sm:p-5 rounded-[var(--radius-tactile)] bg-[var(--color-surface-sunken)] border-2 border-[var(--color-border-base)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <Sparkles className="w-6 h-6 text-[var(--color-action-amber)] shrink-0" />
-            <div>
-              <p className="font-extrabold text-base text-[var(--color-ink-display)]">
-                Try the sample profile?
-              </p>
-              <p className="text-xs sm:text-sm font-semibold text-[var(--color-ink-muted)]">
-                Pre-fills details for Ramesh (Age 71, retired educator) and daughter Priya.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            id="btn-quick-fill-ramesh"
-            onClick={quickStartRamesh}
-            className="h-12 px-4 rounded-xl bg-white border-2 border-[var(--color-border-strong)] hover:bg-amber-50 active:translate-y-0.5 text-[var(--color-ink-display)] font-extrabold text-sm flex items-center justify-center gap-2 transition-all touch-target whitespace-nowrap self-start sm:self-auto"
-          >
-            <Check className="w-4 h-4 text-[var(--color-action-amber)]" />
-            <span>Load Ramesh&apos;s Profile</span>
-          </button>
-        </div>
-      )}
-
-      {/* The Intake Form */}
+      {/* Form Container */}
       <form
         onSubmit={handleSubmit}
-        className="space-y-6 bg-[var(--color-surface)] p-6 sm:p-8 rounded-[var(--radius-tactile)] border-2 border-[var(--color-border-base)] shadow-md"
+        className="space-y-6 bg-white p-5 sm:p-6 rounded-md border border-neutral-200"
       >
         
-        {/* BLOCK 1: Personal Identification */}
+        {/* Section 1: Senior Identity */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2.5 pb-2 border-b border-[var(--color-border-subtle)]">
-            <User className="w-5 h-5 text-[var(--color-action-amber)]" />
-            <h2 className="text-xl font-black text-[var(--color-ink-display)]">
-              1. Your Name &amp; Age
+          <div className="flex items-center gap-2 pb-2 border-b border-neutral-100">
+            <User className="w-4 h-4 text-neutral-600" />
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-900">
+              Step 1: Your Name &amp; Age
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Full Name */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label htmlFor="input-user-fullname" className="block text-base font-extrabold text-[var(--color-ink-display)] mb-1.5">
-                What is your full name?
+              <label htmlFor="input-user-fullname" className="block text-xs font-medium text-neutral-700 mb-1">
+                Your Full Name
               </label>
               <input
                 id="input-user-fullname"
@@ -147,17 +101,16 @@ export const OnboardingForm: React.FC<OnboardingFormProps> = ({
                   setProfile((prev) => ({
                     ...prev,
                     name: newName,
-                    preferredGreeting: prev.preferredGreeting || (newName ? `${newName.split(' ')[0]} Ji` : 'Ramesh Ji'),
+                    preferredGreeting: prev.preferredGreeting || (newName ? `${newName.split(' ')[0]} Ji` : ''),
                   }));
                 }}
-                placeholder="e.g., Ramesh Sharma"
-                className="w-full h-14 px-4 rounded-xl border-2 border-[var(--color-border-base)] bg-[var(--color-canvas)] focus:border-[var(--color-action-amber)] focus:bg-white font-bold text-lg text-[var(--color-ink-primary)] touch-target"
+                placeholder="Enter your full name"
+                className="w-full h-9 px-3 rounded-md border border-neutral-200 text-neutral-900 bg-white focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 text-xs"
               />
             </div>
 
-            {/* Age Stepper */}
             <div>
-              <label htmlFor="input-user-age" className="block text-base font-extrabold text-[var(--color-ink-display)] mb-1.5">
+              <label htmlFor="input-user-age" className="block text-xs font-medium text-neutral-700 mb-1">
                 Your Age
               </label>
               <div className="flex items-center gap-2">
@@ -165,10 +118,9 @@ export const OnboardingForm: React.FC<OnboardingFormProps> = ({
                   type="button"
                   id="btn-decrement-age"
                   onClick={() => adjustAge(-1)}
-                  className="w-14 h-14 rounded-xl border-2 border-[var(--color-border-base)] bg-[var(--color-surface-sunken)] hover:bg-white active:translate-y-0.5 font-black text-xl text-[var(--color-ink-display)] flex items-center justify-center touch-target"
-                  aria-label="Decrease age by 1"
+                  className="w-9 h-9 rounded-md border border-neutral-200 bg-white hover:border-neutral-900 text-neutral-700 flex items-center justify-center cursor-pointer transition-colors"
                 >
-                  <Minus className="w-5 h-5" />
+                  <Minus className="w-3.5 h-3.5" />
                 </button>
 
                 <input
@@ -181,37 +133,35 @@ export const OnboardingForm: React.FC<OnboardingFormProps> = ({
                   onChange={(e) =>
                     setProfile((prev) => ({ ...prev, age: parseInt(e.target.value, 10) || 70 }))
                   }
-                  className="flex-1 h-14 px-3 rounded-xl border-2 border-[var(--color-border-base)] bg-[var(--color-canvas)] font-black text-2xl text-center text-[var(--color-ink-display)] touch-target"
+                  className="flex-1 h-9 px-2 rounded-md border border-neutral-200 text-xs text-center text-neutral-900 bg-white focus:border-neutral-900"
                 />
 
                 <button
                   type="button"
                   id="btn-increment-age"
                   onClick={() => adjustAge(1)}
-                  className="w-14 h-14 rounded-xl border-2 border-[var(--color-border-base)] bg-[var(--color-surface-sunken)] hover:bg-white active:translate-y-0.5 font-black text-xl text-[var(--color-ink-display)] flex items-center justify-center touch-target"
-                  aria-label="Increase age by 1"
+                  className="w-9 h-9 rounded-md border border-neutral-200 bg-white hover:border-neutral-900 text-neutral-700 flex items-center justify-center cursor-pointer transition-colors"
                 >
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Preferred Greeting / Honorific */}
           <div>
-            <label htmlFor="input-custom-greeting" className="block text-base font-extrabold text-[var(--color-ink-display)] mb-1.5">
-              How should Aura respectfully address you?
+            <label htmlFor="input-custom-greeting" className="block text-xs font-medium text-neutral-700 mb-1.5">
+              How would you like to be addressed?
             </label>
-            <div className="flex flex-wrap gap-2 mb-2">
+            <div className="flex flex-wrap gap-1.5 mb-2">
               {titleOptions.map((opt) => (
                 <button
                   key={opt}
                   type="button"
                   onClick={() => setProfile((prev) => ({ ...prev, preferredGreeting: opt }))}
-                  className={`h-11 px-3.5 rounded-lg border-2 font-bold text-sm sm:text-base active:translate-y-0.5 transition-all touch-target whitespace-nowrap ${
+                  className={`h-7 px-2.5 rounded-md border text-xs transition-colors cursor-pointer ${
                     profile.preferredGreeting === opt
-                      ? 'bg-[var(--color-action-amber)] text-white border-[var(--color-action-amber)]'
-                      : 'bg-white border-[var(--color-border-base)] text-[var(--color-ink-display)] hover:bg-[var(--color-surface-sunken)]'
+                      ? 'bg-black text-white border-black font-medium'
+                      : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-900'
                   }`}
                 >
                   {opt}
@@ -223,42 +173,41 @@ export const OnboardingForm: React.FC<OnboardingFormProps> = ({
               type="text"
               value={profile.preferredGreeting}
               onChange={(e) => setProfile((prev) => ({ ...prev, preferredGreeting: e.target.value }))}
-              placeholder="Or type custom greeting, e.g., 'Professor Ramesh' or 'Dada'"
-              className="w-full h-12 px-4 rounded-xl border-2 border-[var(--color-border-base)] bg-[var(--color-canvas)] font-semibold text-base text-[var(--color-ink-primary)]"
+              placeholder="Or type your preferred greeting, e.g. 'Professor Ramesh'"
+              className="w-full h-9 px-3 rounded-md border border-neutral-200 text-neutral-900 bg-white focus:border-neutral-900 text-xs"
             />
           </div>
 
-          {/* Primary Focus / Concern */}
           <div>
-            <label className="block text-base font-extrabold text-[var(--color-ink-display)] mb-2">
-              What is your main daily priority for Aura?
+            <label className="block text-xs font-medium text-neutral-700 mb-1.5">
+              What do you want help with most?
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {[
-                { id: 'all', label: 'All-in-One Companion', desc: 'Bills, safety checks, pills & friendly chat' },
-                { id: 'scams', label: 'Fraud & Scam Protection', desc: 'Scrutinizing suspicious SMS, bills & APK links' },
-                { id: 'medicine', label: 'Medicine & Prescriptions', desc: 'Reading bottles, dosages & food instructions' },
-                { id: 'memory', label: 'Memory & Family Recall', desc: 'Looking at vintage photos & reminiscence' },
+                { id: 'all', label: 'All-in-One Safety Companion', desc: 'Bills, safety checks, prescriptions & questions' },
+                { id: 'scams', label: 'Fraud & Scam Protection', desc: 'Checking suspicious text messages, letters & calls' },
+                { id: 'medicine', label: 'Medicine & Dosages', desc: 'Reading medicine labels, instructions & times to take' },
+                { id: 'memory', label: 'Family Memory & Reminders', desc: 'Friendly conversations and daily reminders' },
               ].map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => setProfile((prev) => ({ ...prev, primaryConcern: item.id as any }))}
-                  className={`p-3.5 rounded-xl border-2 text-left active:translate-y-0.5 transition-all ${
+                  className={`p-3 rounded-md border text-left transition-colors cursor-pointer ${
                     profile.primaryConcern === item.id
-                      ? 'border-[var(--color-action-amber)] bg-amber-50/50 shadow-xs'
-                      : 'border-[var(--color-border-base)] bg-white hover:border-[var(--color-border-strong)]'
+                      ? 'border-neutral-900 bg-neutral-50 ring-1 ring-neutral-900'
+                      : 'border-neutral-200 bg-white hover:border-neutral-400'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-base text-[var(--color-ink-display)]">
+                    <span className="font-semibold text-xs text-neutral-900">
                       {item.label}
                     </span>
                     {profile.primaryConcern === item.id && (
-                      <Check className="w-4 h-4 text-[var(--color-action-amber)]" />
+                      <Check className="w-3.5 h-3.5 text-neutral-900" />
                     )}
                   </div>
-                  <p className="text-xs font-semibold text-[var(--color-ink-muted)] mt-1">
+                  <p className="text-[11px] text-neutral-500 mt-0.5">
                     {item.desc}
                   </p>
                 </button>
@@ -267,24 +216,20 @@ export const OnboardingForm: React.FC<OnboardingFormProps> = ({
           </div>
         </section>
 
-        {/* BLOCK 2: Emergency Contact / Caregiver */}
-        <section className="space-y-4 pt-4 border-t border-[var(--color-border-subtle)]">
-          <div className="flex items-center gap-2.5 pb-2 border-b border-[var(--color-border-subtle)]">
-            <HeartHandshake className="w-5 h-5 text-[var(--color-action-amber)]" />
+        {/* Section 2: Caregiver Emergency Contact */}
+        <section className="space-y-4 pt-4 border-t border-neutral-100">
+          <div className="flex items-center gap-2 pb-2 border-b border-neutral-100">
+            <HeartHandshake className="w-4 h-4 text-neutral-600" />
             <div>
-              <h2 className="text-xl font-black text-[var(--color-ink-display)]">
-                2. Trusted Family Emergency Contact
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-900">
+                Step 2: Trusted Family or Helper Contact
               </h2>
-              <p className="text-xs sm:text-sm font-semibold text-[var(--color-ink-muted)]">
-                Who should Aura notify with 1 tap if an urgent scam or unclear pill is detected?
-              </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Contact Name */}
             <div>
-              <label htmlFor="input-caregiver-name" className="block text-sm font-extrabold text-[var(--color-ink-display)] mb-1">
+              <label htmlFor="input-caregiver-name" className="block text-xs font-medium text-neutral-700 mb-1">
                 Contact Name
               </label>
               <input
@@ -298,14 +243,13 @@ export const OnboardingForm: React.FC<OnboardingFormProps> = ({
                     caregiver: { ...prev.caregiver, name: e.target.value },
                   }))
                 }
-                placeholder="e.g., Priya"
-                className="w-full h-12 px-3.5 rounded-xl border-2 border-[var(--color-border-base)] bg-[var(--color-canvas)] font-bold text-base text-[var(--color-ink-primary)] touch-target"
+                placeholder="e.g. Sarah or Amit"
+                className="w-full h-9 px-3 rounded-md border border-neutral-200 text-neutral-900 bg-white text-xs"
               />
             </div>
 
-            {/* Relationship */}
             <div>
-              <label htmlFor="input-caregiver-relationship" className="block text-sm font-extrabold text-[var(--color-ink-display)] mb-1">
+              <label htmlFor="input-caregiver-relationship" className="block text-xs font-medium text-neutral-700 mb-1">
                 Relationship
               </label>
               <input
@@ -319,15 +263,14 @@ export const OnboardingForm: React.FC<OnboardingFormProps> = ({
                     caregiver: { ...prev.caregiver, relationship: e.target.value },
                   }))
                 }
-                placeholder="e.g., Daughter"
-                className="w-full h-12 px-3.5 rounded-xl border-2 border-[var(--color-border-base)] bg-[var(--color-canvas)] font-bold text-base text-[var(--color-ink-primary)] touch-target"
+                placeholder="e.g. Daughter or Neighbor"
+                className="w-full h-9 px-3 rounded-md border border-neutral-200 text-neutral-900 bg-white text-xs"
               />
             </div>
 
-            {/* Phone */}
             <div>
-              <label htmlFor="input-caregiver-phone" className="block text-sm font-extrabold text-[var(--color-ink-display)] mb-1">
-                Telephone / SMS
+              <label htmlFor="input-caregiver-phone" className="block text-xs font-medium text-neutral-700 mb-1">
+                Phone Number
               </label>
               <div className="relative">
                 <input
@@ -342,80 +285,78 @@ export const OnboardingForm: React.FC<OnboardingFormProps> = ({
                     }))
                   }
                   placeholder="+1 (555) 019-2834"
-                  className="w-full h-12 pl-10 pr-3.5 rounded-xl border-2 border-[var(--color-border-base)] bg-[var(--color-canvas)] font-mono font-bold text-base text-[var(--color-ink-primary)] touch-target"
+                  className="w-full h-9 pl-8 pr-3 rounded-md border border-neutral-200 text-xs text-neutral-900 bg-white"
                 />
-                <Phone className="w-4 h-4 text-[var(--color-ink-muted)] absolute left-3.5 top-4" />
+                <Phone className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-2.5" />
               </div>
             </div>
           </div>
         </section>
 
-        {/* BLOCK 3: Sight & Sound Accessibility */}
-        <section className="space-y-4 pt-4 border-t border-[var(--color-border-subtle)]">
-          <div className="flex items-center gap-2.5 pb-2 border-b border-[var(--color-border-subtle)]">
-            <Eye className="w-5 h-5 text-[var(--color-action-amber)]" />
-            <h2 className="text-xl font-black text-[var(--color-ink-display)]">
-              3. Visual &amp; Audio Comfort
+        {/* Section 3: Visual & Audio Preferences */}
+        <section className="space-y-4 pt-4 border-t border-neutral-100">
+          <div className="flex items-center gap-2 pb-2 border-b border-neutral-100">
+            <Eye className="w-4 h-4 text-neutral-600" />
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-900">
+              Step 3: Text Size &amp; Reading Speed
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Print Size */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-extrabold text-[var(--color-ink-display)] mb-2">
-                Reading Text Size
+              <label className="block text-xs font-medium text-neutral-700 mb-1.5">
+                Comfortable Text Size
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   id="btn-font-normal"
                   onClick={() => setProfile((prev) => ({ ...prev, fontSizeMode: 'normal' }))}
-                  className={`h-14 px-3 rounded-xl border-2 font-bold text-base active:translate-y-0.5 transition-all touch-target whitespace-nowrap ${
+                  className={`h-9 px-3 rounded-md border text-xs transition-colors cursor-pointer ${
                     profile.fontSizeMode === 'normal'
-                      ? 'border-[var(--color-action-amber)] bg-amber-50 text-[var(--color-ink-display)] font-extrabold shadow-2xs'
-                      : 'border-[var(--color-border-base)] bg-white text-[var(--color-ink-muted)]'
+                      ? 'bg-black text-white border-black font-medium'
+                      : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-900'
                   }`}
                 >
-                  18px Standard
+                  Standard Size
                 </button>
 
                 <button
                   type="button"
                   id="btn-font-jumbo"
                   onClick={() => setProfile((prev) => ({ ...prev, fontSizeMode: 'large' }))}
-                  className={`h-14 px-3 rounded-xl border-2 text-lg active:translate-y-0.5 transition-all touch-target whitespace-nowrap ${
+                  className={`h-9 px-3 rounded-md border text-xs transition-colors cursor-pointer ${
                     profile.fontSizeMode === 'large'
-                      ? 'border-[var(--color-action-amber)] bg-amber-50 text-[var(--color-ink-display)] font-black shadow-2xs'
-                      : 'border-[var(--color-border-base)] bg-white text-[var(--color-ink-muted)] font-bold'
+                      ? 'bg-black text-white border-black font-medium'
+                      : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-900'
                   }`}
                 >
-                  22px Jumbo Print
+                  Large Print
                 </button>
               </div>
             </div>
 
-            {/* Voice Speed */}
             <div>
-              <label className="block text-sm font-extrabold text-[var(--color-ink-display)] mb-2 flex items-center justify-between">
-                <span>Speaking Cadence</span>
-                <span className="text-xs font-semibold text-[var(--color-action-amber)]">
-                  {profile.speechRate === 0.85 ? 'Recommended (0.85x)' : `${profile.speechRate}x`}
+              <label className="block text-xs font-medium text-neutral-700 mb-1.5 flex items-center justify-between">
+                <span>Voice Reading Speed</span>
+                <span className="text-neutral-500 font-medium">
+                  {profile.speechRate <= 0.75 ? 'Gentle & Slow' : profile.speechRate <= 0.9 ? 'Normal Pace' : 'Faster Pace'}
                 </span>
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { rate: 0.7, label: '0.70x Slow' },
-                  { rate: 0.85, label: '0.85x Warm' },
-                  { rate: 1.0, label: '1.0x Normal' },
+                  { rate: 0.7, label: 'Slow' },
+                  { rate: 0.85, label: 'Normal' },
+                  { rate: 1.0, label: 'Fast' },
                 ].map((item) => (
                   <button
                     key={item.rate}
                     type="button"
                     onClick={() => setProfile((prev) => ({ ...prev, speechRate: item.rate }))}
-                    className={`h-14 px-2 rounded-xl border-2 font-bold text-sm sm:text-base active:translate-y-0.5 transition-all touch-target whitespace-nowrap ${
+                    className={`h-9 px-2 rounded-md border text-xs transition-colors cursor-pointer ${
                       profile.speechRate === item.rate
-                        ? 'border-[var(--color-action-amber)] bg-amber-50 text-[var(--color-ink-display)] font-extrabold shadow-2xs'
-                        : 'border-[var(--color-border-base)] bg-white text-[var(--color-ink-muted)]'
+                        ? 'bg-black text-white border-black font-medium'
+                        : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-900'
                     }`}
                   >
                     {item.label}
@@ -426,31 +367,30 @@ export const OnboardingForm: React.FC<OnboardingFormProps> = ({
           </div>
         </section>
 
-        {/* SUBMIT BUTTON */}
-        <div className="pt-4 border-t border-[var(--color-border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-3">
+        {/* Submit */}
+        <div className="pt-4 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-3">
           {isEditing && onCancel ? (
             <button
               type="button"
               id="btn-cancel-edit-profile"
               onClick={onCancel}
-              className="w-full sm:w-auto h-14 px-6 rounded-xl border-2 border-[var(--color-border-base)] bg-white hover:bg-[var(--color-surface-sunken)] font-extrabold text-base text-[var(--color-ink-muted)] touch-target whitespace-nowrap"
+              className="w-full sm:w-auto h-9 px-4 rounded-md border border-neutral-200 bg-white hover:border-neutral-900 text-xs font-medium text-neutral-700 cursor-pointer"
             >
-              Cancel &amp; Keep Current
+              Cancel
             </button>
           ) : (
-            <div className="flex items-center gap-2 text-xs font-bold text-[var(--color-ink-muted)]">
-              <Volume2 className="w-4 h-4 text-[var(--color-action-amber)] shrink-0" />
-              <span>Aura automatically speaks out verified results slowly and clearly.</span>
+            <div className="text-xs text-neutral-500">
+              Answers can be read aloud automatically so you never have to strain your eyes
             </div>
           )}
 
           <button
             type="submit"
             id="btn-submit-onboarding"
-            className="w-full sm:w-auto h-16 px-8 rounded-xl bg-[var(--color-action-amber)] hover:bg-[var(--color-action-amber-hover)] text-white font-black text-lg sm:text-xl flex items-center justify-center gap-3 active:translate-y-0.5 shadow-xs transition-all touch-target whitespace-nowrap"
+            className="w-full sm:w-auto h-9 px-4 rounded-md bg-black hover:bg-neutral-800 text-white font-medium text-xs flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
           >
-            <span>{isEditing ? 'Save & Return to Companion' : 'Enter Sahayak Companion'}</span>
-            <ArrowRight className="w-5 h-5" />
+            <span>{isEditing ? 'Save Preferences' : 'Start Using Sahayak'}</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 

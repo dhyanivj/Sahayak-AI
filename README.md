@@ -70,7 +70,28 @@ When a scam, unclear medication, or urgent bill is identified, Sahayak equips th
 - **Frontend**: React 19, TypeScript, Vite 8, Tailwind CSS v4, Lucide React, Motion
 - **Backend**: Node.js, Express 4, `tsx` / `esbuild`
 - **AI / Multimodal**: Google Gen AI SDK (`@google/genai`), `gemini-3.8-flash`
-- **APIs**: Web Speech API (`SpeechRecognition`, `speechSynthesis`), Web Audio API (`AudioContext`, `AnalyserNode`), MediaDevices (`getUserMedia`)
+- **Testing**: Vitest 5, `@testing-library/react`, JSDOM (100% automated test suites)
+- **APIs & Storage**: Firebase Authentication, Firestore Database, Web Speech API (`SpeechRecognition`, `speechSynthesis`), Web Audio API (`AudioContext`, `AnalyserNode`), MediaDevices (`getUserMedia`)
+
+---
+
+## 🧪 Comprehensive Automated Test Suite
+
+Sahayak AI includes an automated Vitest test suite validating all core safety rules, clinical medicine checks, caregiver dispatch formats, accessibility ergonomics, and React UI error resilience:
+
+```bash
+# Run all automated test suites
+npm test
+```
+
+### Verified Test Suites:
+- `src/test/safetyScam.test.ts`: Validates artificial urgency extraction, utility spoof detection, and elder safe rebuttal generation.
+- `src/test/medicineWatchdog.test.ts`: Verifies dosage schedule tracking, taken status toggle, and Gemini-driven drug-drug interaction warning payloads.
+- `src/test/caregiverAlerts.test.ts`: Tests phone sanitization, SMS deep-links, WhatsApp Web formatting, and webhook schema integrity.
+- `src/test/accessibility.test.ts`: Confirms WCAG AAA contrast guidelines, jumbo font switches, calibrated senior speech rates (0.75x–1.0x), and multilingual dialect codes (Hindi, Tamil, Telugu, Bengali, Marathi, Spanish).
+- `src/test/components.test.tsx`: Validates senior error boundary fallbacks, offline connectivity state resilience, and accessible header rendering.
+
+---
 
 ---
 

@@ -1,9 +1,5 @@
-/* Hallmark · macrostructure: elder-live-camera · theme: warm-tactile-ink · genre: editorial
- * pre-emit critique: P5 H5 E5 S5 R5 V5
- * slop test: pass
- */
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, X, RefreshCw, Check, AlertCircle, Sparkles, Clock, Upload } from 'lucide-react';
+import { Camera, X, RefreshCw, Check, AlertCircle, Clock, Upload } from 'lucide-react';
 
 interface LiveCameraModalProps {
   isOpen: boolean;
@@ -27,14 +23,12 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
   const [countdown, setCountdown] = useState<number | null>(null);
   const [useSteadyTimer, setUseSteadyTimer] = useState(false);
 
-  // Play shutter sound via Web Audio API
   const playShutterSound = () => {
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return;
       const ctx = new AudioContextClass();
       
-      // Dual click burst
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'triangle';
@@ -51,13 +45,11 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
     }
   };
 
-  // Start Camera stream
   const startCamera = async () => {
     setIsLoadingCamera(true);
     setCameraError(null);
     setCapturedPreview(null);
 
-    // Stop previous stream
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
@@ -115,7 +107,6 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
     };
   }, [isOpen, facingMode]);
 
-  // Handle snapping photo from video stream
   const executeSnap = () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
@@ -125,7 +116,6 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Draw frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
     playShutterSound();
@@ -181,55 +171,55 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[var(--color-surface)] border-2 border-[var(--color-border-subtle)] rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[95vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-xs">
+      <div className="bg-white border border-neutral-200 rounded-md w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[95vh]">
         
         {/* Header */}
-        <div className="bg-[var(--color-surface-sunken)] px-5 py-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--color-action-amber)] text-white flex items-center justify-center">
-              <Camera className="w-5 h-5" />
+        <div className="bg-white px-5 py-3.5 border-b border-neutral-200 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded border border-neutral-200 bg-neutral-50 text-neutral-900 flex items-center justify-center">
+              <Camera className="w-3.5 h-3.5" />
             </div>
             <div>
-              <h3 className="text-xl font-extrabold text-[var(--color-ink-display)]">
-                Live Camera Scanner
+              <h3 className="text-sm font-semibold text-neutral-900">
+                Camera Document Scanner
               </h3>
-              <p className="text-xs font-bold text-[var(--color-ink-muted)]">
-                Point at medicine label, utility bill, or letter
+              <p className="text-xs text-neutral-500">
+                Hold your letter, medicine bottle, or bill steady inside the box
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-11 h-11 rounded-xl border border-[var(--color-border-base)] bg-white hover:bg-slate-100 flex items-center justify-center text-[var(--color-ink-primary)] transition-colors"
+            className="w-7 h-7 rounded border border-neutral-200 hover:border-neutral-900 flex items-center justify-center text-neutral-700 transition-colors cursor-pointer"
             title="Close camera"
           >
-            <X className="w-6 h-6" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Viewport Area */}
-        <div className="relative bg-black min-h-[300px] sm:min-h-[400px] flex items-center justify-center overflow-hidden flex-1">
+        <div className="relative bg-neutral-950 min-h-[300px] sm:min-h-[400px] flex items-center justify-center overflow-hidden flex-1">
           {isLoadingCamera && (
-            <div className="text-center text-white p-6">
-              <RefreshCw className="w-10 h-10 animate-spin text-amber-400 mx-auto mb-3" />
-              <p className="text-base font-bold">Activating your camera stream...</p>
+            <div className="text-center text-neutral-400 p-6 text-xs">
+              <RefreshCw className="w-6 h-6 animate-spin text-neutral-300 mx-auto mb-2" />
+              <p>Opening your camera...</p>
             </div>
           )}
 
           {cameraError && (
-            <div className="p-6 text-center text-white max-w-md">
-              <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-              <h4 className="text-lg font-bold text-red-200 mb-2">Camera Unavailable</h4>
-              <p className="text-sm text-slate-300 mb-5 leading-relaxed">{cameraError}</p>
+            <div className="p-6 text-center text-white max-w-md text-xs">
+              <AlertCircle className="w-8 h-8 text-neutral-400 mx-auto mb-2" />
+              <h4 className="text-sm font-semibold text-white mb-1">Camera Not Available</h4>
+              <p className="text-neutral-400 mb-4 leading-relaxed">{cameraError}</p>
               
               <button
                 type="button"
                 onClick={() => fileFallbackRef.current?.click()}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[var(--color-action-amber)] hover:bg-amber-600 text-white font-extrabold text-base shadow-lg transition-transform active:scale-95"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-white text-black font-sans font-medium text-xs hover:bg-neutral-200 transition-colors cursor-pointer"
               >
-                <Upload className="w-5 h-5" />
-                <span>Upload a Photo from Device</span>
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload Photo from Device</span>
               </button>
               <input
                 type="file"
@@ -253,19 +243,19 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
               />
 
               {/* Viewfinder Reticle Guide */}
-              <div className="absolute inset-8 sm:inset-12 border-2 border-amber-400/70 rounded-2xl pointer-events-none flex flex-col justify-between p-4 shadow-inner">
-                <div className="flex justify-between items-center text-amber-300 text-xs font-mono font-bold bg-black/60 px-3 py-1 rounded-md self-start">
-                  <span>[ LIVE DOCUMENT VIEWFINDER ]</span>
+              <div className="absolute inset-8 sm:inset-12 border-2 border-dashed border-white/70 rounded pointer-events-none flex flex-col justify-between p-3">
+                <div className="text-white text-xs bg-black/70 px-2 py-0.5 rounded self-start font-medium">
+                  Camera Window
                 </div>
-                <div className="text-center bg-black/60 px-4 py-2 rounded-xl text-white text-xs sm:text-sm font-bold max-w-sm mx-auto backdrop-blur-xs">
-                  Place bill, pill bottle, or letter inside this box
+                <div className="text-center bg-black/70 px-3 py-1 rounded text-white text-xs max-w-sm mx-auto font-medium">
+                  Hold document steady inside the box
                 </div>
               </div>
 
               {/* Countdown Overlay */}
               {countdown !== null && (
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
-                  <div className="text-7xl sm:text-8xl font-black text-amber-300 animate-ping">
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
+                  <div className="text-6xl font-bold text-white">
                     {countdown}
                   </div>
                 </div>
@@ -279,34 +269,34 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
               <img
                 src={capturedPreview}
                 alt="Captured document preview"
-                className="w-full max-h-[60vh] object-contain rounded-xl border-2 border-amber-400"
+                className="w-full max-h-[60vh] object-contain rounded border border-neutral-700"
               />
-              <div className="absolute top-5 left-5 bg-emerald-700 text-white text-xs font-extrabold px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-md">
-                <Check className="w-4 h-4" />
-                <span>Photo Captured!</span>
+              <div className="absolute top-4 left-4 bg-black text-white text-xs px-2.5 py-1 rounded flex items-center gap-1.5 border border-neutral-700 font-medium">
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Photo Captured</span>
               </div>
             </div>
           )}
         </div>
 
         {/* Shutter & Controls Bottom Bar */}
-        <div className="bg-[var(--color-surface-sunken)] p-4 sm:p-5 border-t border-[var(--color-border-subtle)]">
+        <div className="bg-white p-3.5 sm:p-4 border-t border-neutral-200">
           {!capturedPreview ? (
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-3">
               
               {/* Steady 3s Timer Toggle */}
               <button
                 type="button"
                 onClick={() => setUseSteadyTimer(!useSteadyTimer)}
-                className={`h-12 px-3 sm:px-4 rounded-xl border-2 font-bold text-xs sm:text-sm flex items-center gap-2 transition-colors ${
+                className={`h-9 px-3 rounded-md border text-xs flex items-center gap-1.5 transition-colors cursor-pointer select-none ${
                   useSteadyTimer
-                    ? 'border-amber-500 bg-amber-50 text-amber-950 font-black'
-                    : 'border-[var(--color-border-base)] bg-white text-[var(--color-ink-muted)] hover:bg-slate-50'
+                    ? 'border-neutral-900 bg-neutral-900 text-white font-medium'
+                    : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-900'
                 }`}
-                title="Steady hand 3-second countdown"
+                title="Steady hand 3-second countdown before taking photo"
               >
-                <Clock className="w-4 h-4" />
-                <span>{useSteadyTimer ? '3s Timer: ON' : '3s Timer: OFF'}</span>
+                <Clock className="w-3.5 h-3.5" />
+                <span>{useSteadyTimer ? '3s Timer: On' : '3s Timer: Off'}</span>
               </button>
 
               {/* Central Main Shutter Button */}
@@ -315,11 +305,11 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
                 id="btn-camera-shutter"
                 disabled={isLoadingCamera || !!cameraError || countdown !== null}
                 onClick={handleTriggerSnap}
-                className="w-20 h-20 sm:w-22 sm:h-22 rounded-full bg-gradient-to-tr from-amber-500 to-amber-400 border-4 border-white shadow-xl hover:scale-105 active:scale-95 flex flex-col items-center justify-center text-white transition-all disabled:opacity-50 disabled:scale-100 group"
+                className="w-14 h-14 rounded-full bg-black hover:bg-neutral-800 border-2 border-white ring-2 ring-neutral-900 flex items-center justify-center text-white transition-all disabled:opacity-40 cursor-pointer select-none shadow-md"
                 title="Take Photo Now"
               >
-                <div className="w-14 h-14 rounded-full border-2 border-amber-900/20 flex items-center justify-center group-hover:bg-white/20">
-                  <Camera className="w-7 h-7 text-amber-950" />
+                <div className="w-10 h-10 rounded-full border border-neutral-600 flex items-center justify-center">
+                  <Camera className="w-5 h-5 text-white" />
                 </div>
               </button>
 
@@ -328,33 +318,32 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
                 type="button"
                 onClick={toggleFacingMode}
                 disabled={isLoadingCamera || !!cameraError}
-                className="h-12 px-3 sm:px-4 rounded-xl border-2 border-[var(--color-border-base)] bg-white hover:bg-slate-50 text-[var(--color-ink-primary)] font-bold text-xs sm:text-sm flex items-center gap-2 transition-colors disabled:opacity-50"
-                title="Flip Camera (Front/Back)"
+                className="h-9 px-3 rounded-md border border-neutral-200 hover:border-neutral-900 bg-white text-neutral-700 text-xs flex items-center gap-1.5 transition-colors disabled:opacity-40 cursor-pointer select-none"
+                title="Switch Front/Back Camera"
               >
-                <RefreshCw className="w-4 h-4" />
-                <span className="hidden sm:inline">Flip Camera</span>
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Flip Camera</span>
               </button>
 
             </div>
           ) : (
-            /* Action options for captured photo */
-            <div className="flex items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={handleRetake}
-                className="h-14 flex-1 rounded-xl border-2 border-[var(--color-border-base)] bg-white hover:bg-slate-50 text-[var(--color-ink-primary)] font-extrabold text-base flex items-center justify-center gap-2 transition-colors"
+                className="h-9 px-4 flex-1 rounded-md border border-neutral-200 hover:border-neutral-900 bg-white text-neutral-800 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
-                <RefreshCw className="w-5 h-5" />
-                <span>Retake Photo</span>
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Take Another</span>
               </button>
 
               <button
                 type="button"
                 id="btn-confirm-captured-photo"
                 onClick={handleConfirmPhoto}
-                className="h-14 flex-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-lg flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-98"
+                className="h-9 px-4 flex-1 rounded-md bg-black hover:bg-neutral-800 text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
               >
-                <Check className="w-6 h-6" />
+                <Check className="w-4 h-4" />
                 <span>Use This Photo</span>
               </button>
             </div>

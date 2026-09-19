@@ -1,5 +1,27 @@
 export type SahayakMode = 'HEALTH_PILL' | 'SAFETY_BILL_SCAM' | 'MEMORY_STIMULATION' | 'SMART_ASSIST';
 
+export interface MedicineDetails {
+  name: string;
+  purpose: string;
+  timing: 'morning' | 'afternoon' | 'evening' | 'night' | 'as_needed';
+  instructions: string;
+  cautions: string;
+}
+
+export interface ScamDefenseDetails {
+  scamType: string;
+  psychologicalTrap: string;
+  redFlags: string[];
+  safeRebuttalScript: string;
+}
+
+export interface ClarifyMessage {
+  id: string;
+  sender: 'elder' | 'sahayak';
+  text: string;
+  timestamp: string;
+}
+
 export interface SahayakActionPayload {
   mode: SahayakMode;
   headline: string;
@@ -10,6 +32,32 @@ export interface SahayakActionPayload {
   caregiver_alert: string | null;
   inferenceTimeMs?: number;
   sourceImage?: string;
+  medicineDetails?: MedicineDetails | null;
+  scamDetails?: ScamDefenseDetails | null;
+  currentLanguage?: string;
+}
+
+export interface MedicineItem {
+  id: string;
+  userId: string;
+  name: string;
+  purpose: string;
+  timing: 'morning' | 'afternoon' | 'evening' | 'night' | 'as_needed';
+  instructions?: string;
+  cautions?: string;
+  takenToday?: boolean;
+  addedAt: string;
+}
+
+export interface DrugInteractionReport {
+  hasConflict: boolean;
+  overallSafety: 'SAFE' | 'CAUTION' | 'DANGER';
+  headline: string;
+  summary: string;
+  warnings: string[];
+  foodCautions: string[];
+  timingRecommendations: string[];
+  voiceReadout: string;
 }
 
 export interface CaregiverContact {
