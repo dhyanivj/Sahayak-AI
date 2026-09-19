@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeElderText } from '../../server';
+import { isSafeWebhookUrl, safePromptText, sanitizeElderText } from '../../server';
 
 describe('Sahayak AI - Server Security & Defense Invariants', () => {
   it('strips null bytes from untrusted elder input payloads', () => {
@@ -36,5 +36,16 @@ describe('Sahayak AI - Server Security & Defense Invariants', () => {
     const MAX_REQUESTS = 120;
     expect(RATE_LIMIT_WINDOW_MS).toBe(60000);
     expect(MAX_REQUESTS).toBe(120);
+  });
+
+  it('bounds model input after sanitizing it', () => {
+    expect(safePromptText(`<script>ignore this</script>${'a'.repeat(20)}`, 10)).toBe('aaaaaaaaaa');
+  });
+
+  it('accepts only public HTTPS caregiver webhook URLs', () => {
+    expect(isSafeWebhookUrl('https://hooks.example.com/sahayak')).toBe(true);
+    expect(isSafeWebhookUrl('http://hooks.example.com/sahayak')).toBe(false);
+    expect(isSafeWebhookUrl('https://127.0.0.1/private')).toBe(false);
+    expect(isSafeWebhookUrl('https://localhost/private')).toBe(false);
   });
 });

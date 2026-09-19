@@ -232,6 +232,8 @@ export default function App() {
             setUserProfile(remoteProfile);
             setFontSizeMode(remoteProfile.fontSizeMode);
             setSpeechRate(remoteProfile.speechRate);
+            setAppLanguage(remoteProfile.appLanguage || 'English');
+            setHighContrastMode(remoteProfile.highContrastMode || false);
             setCaregiverContact(remoteProfile.caregiver);
           } else {
             // First time login with an existing local profile: migrate to Firestore
@@ -295,6 +297,8 @@ export default function App() {
     setUserProfile(updated);
     setFontSizeMode(updated.fontSizeMode);
     setSpeechRate(updated.speechRate);
+    setAppLanguage(updated.appLanguage || 'English');
+    setHighContrastMode(updated.highContrastMode || false);
     setCaregiverContact(updated.caregiver);
     setIsEditingProfile(false);
 
@@ -312,6 +316,48 @@ export default function App() {
       }
     }
     playGentleChime('success');
+  };
+
+  /** Keep accessibility choices durable across refreshes and signed-in devices. */
+  const updateAccessibilityPreferences = (
+    changes: Partial<Pick<UserProfile, 'fontSizeMode' | 'speechRate' | 'appLanguage' | 'highContrastMode'>>
+  ) => {
+    const updated = { ...userProfile, ...changes };
+    setUserProfile(updated);
+    if (changes.fontSizeMode) setFontSizeMode(changes.fontSizeMode);
+    if (changes.speechRate !== undefined) setSpeechRate(changes.speechRate);
+    if (changes.appLanguage) setAppLanguage(changes.appLanguage);
+    if (changes.highContrastMode !== undefined) setHighContrastMode(changes.highContrastMode);
+
+    try {
+      localStorage.setItem('sahayak_user_profile', JSON.stringify(updated));
+    } catch (error) {
+      console.warn('Could not save accessibility preferences locally', error);
+    }
+    if (currentUser) {
+      saveUserProfileToFirestore(currentUser.uid, updated).catch((error) =>
+        console.warn('Could not sync accessibility preferences', error)
+      );
+    }
+  };
+
+  const handleReadScreenAloud = () => {
+    if (!('speechSynthesis' in window)) return;
+    if (isReadingScreen) {
+      window.speechSynthesis.cancel();
+      setIsReadingScreen(false);
+      return;
+    }
+    const readableContent = document.querySelector('main')?.innerText?.trim();
+    if (!readableContent) return;
+    const utterance = new SpeechSynthesisUtterance(readableContent.slice(0, 4000));
+    utterance.lang = getSpeechLangCode(appLanguage);
+    utterance.rate = speechRate;
+    utterance.onend = () => setIsReadingScreen(false);
+    utterance.onerror = () => setIsReadingScreen(false);
+    setIsReadingScreen(true);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
   };
 
   const handleLogin = async () => {
@@ -621,14 +667,14 @@ export default function App() {
   const showOnboarding = !userProfile.hasCompletedOnboarding || isEditingProfile;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--color-canvas)] text-[var(--color-ink-primary)]">
+    <div className={`min-h-screen flex flex-col bg-[var(--color-canvas)] text-[var(--color-ink-primary)] ${highContrastMode ? 'high-contrast' : ''}`}>
       
       {/* Top Header */}
       <Header
         fontSizeMode={fontSizeMode}
-        setFontSizeMode={setFontSizeMode}
+        setFontSizeMode={(mode) => updateAccessibilityPreferences({ fontSizeMode: mode })}
         speechRate={speechRate}
-        setSpeechRate={setSpeechRate}
+        setSpeechRate={(rate) => updateAccessibilityPreferences({ speechRate: rate })}
         caregiverContact={caregiverContact}
         dispatchCount={dispatches.length}
         onOpenCaregiverModal={() => setIsCaregiverModalOpen(true)}
@@ -641,6 +687,12 @@ export default function App() {
         currentUser={currentUser}
         onLogin={handleLogin}
         onLogout={handleLogout}
+        appLanguage={appLanguage}
+        onSelectLanguage={(language) => updateAccessibilityPreferences({ appLanguage: language })}
+        highContrastMode={highContrastMode}
+        onToggleHighContrast={() => updateAccessibilityPreferences({ highContrastMode: !highContrastMode })}
+        onReadScreenAloud={handleReadScreenAloud}
+        isReadingScreen={isReadingScreen}
       />
 
       {/* Main Content Area */}
@@ -703,6 +755,8 @@ export default function App() {
             isSendingAlert={isSendingAlert}
             userName={userProfile.name}
             preferredGreeting={userProfile.preferredGreeting}
+            appLanguage={appLanguage}
+            highContrastMode={highContrastMode}
             onAddToMedicineCabinet={handleAddMedicine}
             onOpenMedicineCabinet={() => setIsMedicineCabinetOpen(true)}
           />
@@ -713,6 +767,8 @@ export default function App() {
             fontSizeMode={fontSizeMode}
             userName={userProfile.name}
             preferredGreeting={userProfile.preferredGreeting}
+            appLanguage={appLanguage}
+            highContrastMode={highContrastMode}
           />
         )}
 
