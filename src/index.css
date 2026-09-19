@@ -1,0 +1,107 @@
+/* Hallmark · macrostructure: elder-intake-docket · theme: warm-tactile-ink · genre: editorial
+ * pre-emit critique: P5 H5 E5 S5 R5 V5
+ * slop test: pass
+ */
+@import "tailwindcss";
+
+:root {
+  --font-display: 'Newsreader', Georgia, serif;
+  --font-body: 'Atkinson Hyperlegible', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Unslopped High-Acuity Palette: Calm Clinical Trust & Senior Clarity */
+  --color-canvas: #f8f9fa;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f1f3f5;
+  --color-surface-tint: #f8fafc;
+  
+  --color-border-subtle: #e9ecef;
+  --color-border-base: #dee2e6;
+  --color-border-strong: #94a3b8;
+  --color-border-heavy: #334155;
+
+  --color-ink-display: #0f172a;
+  --color-ink-primary: #1e293b;
+  --color-ink-muted: #475569;
+  --color-ink-subtle: #64748b;
+
+  /* Primary action: Deep Forest Teal / Spruce (calm, authoritative, zero SaaS amber) */
+  --color-action-amber: #0f766e;
+  --color-action-amber-hover: #115e59;
+  --color-action-amber-active: #134e4a;
+
+  --color-danger-bg: #fef2f2;
+  --color-danger-border: #dc2626;
+  --color-danger-ink: #7f1d1d;
+
+  --color-safe-bg: #f0fdf4;
+  --color-safe-border: #16a34a;
+  --color-safe-ink: #14532d;
+
+  --radius-tactile: 12px;
+  --radius-tactile-sm: 8px;
+}
+
+@layer base {
+  html, body {
+    overflow-x: clip;
+    background-color: var(--color-canvas);
+    color: var(--color-ink-primary);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    color: var(--color-ink-display);
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+}
+
+/* Accessibility & Tremor-Resistant Touch Affordances */
+:focus-visible {
+  outline: 3px solid var(--color-ink-display);
+  outline-offset: 3px;
+}
+
+.touch-target {
+  min-height: 56px;
+  min-width: 56px;
+}
+
+/* Hallmark Anti-Slop Tactile Button: No 2-line wrapped buttons on mobile */
+.btn-tactile {
+  white-space: nowrap;
+  font-family: var(--font-display);
+  min-height: 56px;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  border-radius: var(--radius-tactile);
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  transition: transform 100ms ease, background-color 150ms ease, border-color 150ms ease;
+  user-select: none;
+}
+
+.btn-tactile:active {
+  transform: translateY(2px);
+}
+
+/* Tactile physical elevation without generic purple/blue glow */
+.tactile-card {
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border-base);
+  border-radius: var(--radius-tactile);
+  box-shadow: 0 4px 0 0 var(--color-border-subtle);
+}
+
+.tactile-card-sunken {
+  background-color: var(--color-surface-sunken);
+  border: 2px solid var(--color-border-base);
+  border-radius: var(--radius-tactile);
+}

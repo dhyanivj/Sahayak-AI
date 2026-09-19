@@ -1,0 +1,12 @@
+{
+  "name": "Sahayak AI",
+  "description": "Multimodal life and safety companion for older adults: instant scam detection, prescription parsing, and automated family alerts.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
+
