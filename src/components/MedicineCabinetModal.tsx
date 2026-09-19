@@ -148,6 +148,9 @@ export const MedicineCabinetModal: React.FC<MedicineCabinetModalProps> = ({
     <div
       className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="medicine-cabinet-title"
     >
       <div
         className="relative w-full max-w-3xl bg-white rounded-lg border border-neutral-200 shadow-xl overflow-hidden my-auto max-h-[92vh] flex flex-col"
@@ -160,7 +163,7 @@ export const MedicineCabinetModal: React.FC<MedicineCabinetModalProps> = ({
               <Pill className="w-5 h-5 text-neutral-800" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-neutral-900">
+              <h2 id="medicine-cabinet-title" className="text-base sm:text-lg font-bold text-neutral-900">
                 Daily Medicine Cabinet &amp; AI Safety Check
               </h2>
               <p className="text-xs text-neutral-500">

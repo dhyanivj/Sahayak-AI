@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isSafeWebhookUrl, safePromptText, sanitizeElderText } from '../../server';
+import { isSafeInlineMedia, isSafeWebhookUrl, pruneRateLimitRecords, safePromptText, sanitizeElderText } from '../../server';
 
 describe('Sahayak AI - Server Security & Defense Invariants', () => {
   it('strips null bytes from untrusted elder input payloads', () => {
@@ -46,6 +46,26 @@ describe('Sahayak AI - Server Security & Defense Invariants', () => {
     expect(isSafeWebhookUrl('https://hooks.example.com/sahayak')).toBe(true);
     expect(isSafeWebhookUrl('http://hooks.example.com/sahayak')).toBe(false);
     expect(isSafeWebhookUrl('https://127.0.0.1/private')).toBe(false);
+    expect(isSafeWebhookUrl('https://[::1]/private')).toBe(false);
+    expect(isSafeWebhookUrl('https://user:secret@hooks.example.com')).toBe(false);
     expect(isSafeWebhookUrl('https://localhost/private')).toBe(false);
+  });
+
+  it('rejects malformed, oversized, or unsupported inline media before model inference', () => {
+    const allowed = new Set(['image/jpeg']);
+    expect(isSafeInlineMedia({ data: 'aGVsbG8=', mimeType: 'image/jpeg' }, allowed, 10)).toBe(true);
+    expect(isSafeInlineMedia({ data: 'not base64!', mimeType: 'image/jpeg' }, allowed, 10)).toBe(false);
+    expect(isSafeInlineMedia({ data: 'aGVsbG8=', mimeType: 'image/svg+xml' }, allowed, 10)).toBe(false);
+    expect(isSafeInlineMedia({ data: 'a'.repeat(20), mimeType: 'image/jpeg' }, allowed, 10)).toBe(false);
+  });
+
+  it('prunes expired rate-limit clients and caps retained client buckets', () => {
+    const records = new Map([
+      ['expired', { count: 1, resetTime: 99 }],
+      ['oldest', { count: 1, resetTime: 150 }],
+      ['newest', { count: 1, resetTime: 200 }],
+    ]);
+    pruneRateLimitRecords(records, 100, 1);
+    expect([...records.keys()]).toEqual(['newest']);
   });
 });

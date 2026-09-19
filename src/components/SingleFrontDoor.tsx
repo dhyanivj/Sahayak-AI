@@ -29,47 +29,48 @@ interface SingleFrontDoorProps {
   highContrastMode?: boolean;
 }
 
-// Convert any SVG or image into a guaranteed clean raster JPEG for Gemini Multimodal Vision
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_EDGE = 1600;
+
+/**
+ * Resize browser images before they become base64. This caps RAM, upload time, and model input
+ * without making text on a photographed document too small to read.
+ */
 async function ensureRasterImage(
   dataUrl: string,
   mimeType: string
 ): Promise<{ dataUrl: string; base64: string; mimeType: string }> {
-  if (mimeType.includes('svg') || dataUrl.startsWith('data:image/svg')) {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 1200;
-        canvas.height = 800;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const rasterDataUrl = canvas.toDataURL('image/jpeg', 0.92);
-          resolve({
-            dataUrl: rasterDataUrl,
-            base64: rasterDataUrl.split(',')[1],
-            mimeType: 'image/jpeg',
-          });
-          return;
-        }
-        resolve({ dataUrl, base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
-      };
-      img.onerror = () => {
-        resolve({ dataUrl, base64: dataUrl.split(',')[1], mimeType });
-      };
-      img.src = dataUrl;
-    });
-  }
-
-  const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
-  return {
-    dataUrl,
-    base64,
-    mimeType: mimeType || 'image/jpeg',
-  };
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
+      const width = Math.max(1, Math.round((img.naturalWidth || img.width) * scale));
+      const height = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        const base64 = dataUrl.split(',')[1] || dataUrl;
+        resolve({ dataUrl, base64, mimeType: mimeType || 'image/jpeg' });
+        return;
+      }
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, width, height);
+      context.drawImage(img, 0, 0, width, height);
+      const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.86);
+      resolve({
+        dataUrl: optimizedDataUrl,
+        base64: optimizedDataUrl.split(',')[1],
+        mimeType: 'image/jpeg',
+      });
+    };
+    img.onerror = () => {
+      const base64 = dataUrl.split(',')[1] || dataUrl;
+      resolve({ dataUrl, base64, mimeType: mimeType || 'image/jpeg' });
+    };
+    img.src = dataUrl;
+  });
 }
 
 export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
@@ -103,6 +104,7 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const lastMeterRenderRef = useRef(0);
 
   const isJumbo = fontSizeMode === 'jumbo';
   const isLarge = fontSizeMode === 'large' || isJumbo;
@@ -183,19 +185,25 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
 
-      const updateLevel = () => {
+      const updateLevel = (timestamp: number) => {
+        const now = Number.isFinite(timestamp) ? timestamp : performance.now();
         analyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          sum += dataArray[i];
+        // The analyser can run at display refresh rate, but a 10 FPS visual meter is just as
+        // readable and avoids re-rendering the full intake screen 60 times per second.
+        if (now - lastMeterRenderRef.current >= 100) {
+          let sum = 0;
+          for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i];
+          }
+          const avg = sum / bufferLength;
+          const normalized = Math.min(100, Math.round((avg / 128) * 100));
+          setAudioLevel(normalized);
+          lastMeterRenderRef.current = now;
         }
-        const avg = sum / bufferLength;
-        const normalized = Math.min(100, Math.round((avg / 128) * 100));
-        setAudioLevel(normalized);
         animationFrameRef.current = requestAnimationFrame(updateLevel);
       };
 
-      updateLevel();
+      animationFrameRef.current = requestAnimationFrame(updateLevel);
     } catch (e) {
       console.warn('Audio metering unavailable:', e);
     }
@@ -214,6 +222,7 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
     }
+    lastMeterRenderRef.current = 0;
     setAudioLevel(0);
   };
 
@@ -246,8 +255,12 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
   };
 
   const handleFileProcess = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      alert('Please upload an image document (JPEG, PNG, WEBP).');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      alert('Please upload a JPEG, PNG, or WEBP image.');
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      alert('Please choose an image smaller than 10 MB.');
       return;
     }
 
