@@ -66,8 +66,36 @@
 
 /* Vercel-style focus ring */
 :focus-visible {
-  outline: 1.5px solid #000000;
+  outline: 3px solid #1d4ed8;
   outline-offset: 2px;
+}
+
+/* A whole-page contrast mode, including third-party utility coloured controls. */
+.high-contrast {
+  --color-canvas: #000;
+  --color-surface: #000;
+  --color-surface-sunken: #111;
+  --color-ink-primary: #fff;
+  --color-ink-display: #fff;
+  --color-ink-muted: #facc15;
+  background: #000;
+  color: #fff;
+}
+
+.high-contrast main :is(.bg-white, .bg-neutral-50, .bg-\[var\(--color-canvas\)\]) {
+  background-color: #000 !important;
+}
+
+.high-contrast main :is(.text-neutral-900, .text-neutral-800, .text-neutral-700, .text-neutral-600, .text-neutral-500) {
+  color: #fff !important;
+}
+
+.high-contrast main :is(.border-neutral-100, .border-neutral-200, .border-neutral-300) {
+  border-color: #facc15 !important;
+}
+
+.high-contrast main button:not([class*='bg-black']):not([class*='bg-emerald']):not([class*='bg-red']) {
+  border-color: #facc15;
 }
 
 /* Retain accessible touch targets for motor stability */

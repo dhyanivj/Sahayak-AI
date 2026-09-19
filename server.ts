@@ -81,6 +81,29 @@ export function sanitizeElderText(text: unknown): string {
     .trim();
 }
 
+/** Limit untrusted prompt fields so one request cannot consume the model context. */
+export function safePromptText(text: unknown, maxLength = 6000): string {
+  return sanitizeElderText(text).slice(0, maxLength);
+}
+
+/** Webhooks must be encrypted, public HTTPS endpoints; this avoids accidental local-network requests. */
+export function isSafeWebhookUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    return url.protocol === 'https:' &&
+      hostname !== 'localhost' &&
+      hostname !== '::1' &&
+      !hostname.startsWith('127.') &&
+      !hostname.startsWith('10.') &&
+      !hostname.startsWith('192.168.') &&
+      !hostname.startsWith('169.254.');
+  } catch {
+    return false;
+  }
+}
+
 // In-memory caregiver dispatch log for the session
 const dispatchLogs: Array<{
   id: string;
@@ -138,7 +161,7 @@ app.post('/api/caregiver-notify', async (req, res) => {
 
     let webhookDispatched = false;
     // If an external webhook URL (e.g. Zapier, Slack, Make, Telegram) is configured, dispatch to it
-    if (recipient?.webhookUrl && recipient.webhookUrl.startsWith('http')) {
+    if (recipient?.webhookUrl && isSafeWebhookUrl(recipient.webhookUrl)) {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 4000);
@@ -206,8 +229,9 @@ app.post('/api/analyze', async (req, res) => {
   const startTime = Date.now();
   try {
     const { text, image, audio, userProfile } = req.body;
+    const safeText = safePromptText(text);
 
-    if (!text && !image && !audio) {
+    if (!safeText && !image?.data && !audio?.data) {
       res.status(400).json({ error: 'Please provide either text, an image, or audio input.' });
       return;
     }
@@ -234,8 +258,8 @@ app.post('/api/analyze', async (req, res) => {
       });
     }
 
-    const promptText = text && text.trim().length > 0 
-      ? text.trim() 
+    const promptText = safeText
+      ? safeText
       : 'Analyze this input thoroughly for an older adult with maximum safety vigilance.';
     
     parts.push({
@@ -404,8 +428,9 @@ OPERATIONAL INSTRUCTIONS:
 app.post('/api/clarify', async (req, res) => {
   try {
     const { question, currentPayload, history, userProfile } = req.body;
+    const safeQuestion = safePromptText(question, 2000);
 
-    if (!question || !question.trim()) {
+    if (!safeQuestion) {
       res.status(400).json({ error: 'Question is required' });
       return;
     }
@@ -446,7 +471,7 @@ RULES FOR YOUR ANSWER:
         ...chatHistory,
         {
           role: 'user',
-          parts: [{ text: question.trim() }],
+          parts: [{ text: safeQuestion }],
         },
       ],
       config: {
