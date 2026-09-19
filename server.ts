@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const app = express();
+export const app = express();
 const PORT = 3000;
 
 // Security: Disable express fingerprinting
@@ -747,4 +747,8 @@ async function startServer() {
   });
 }
 
-startServer();
+// Importing this module in the test suite must not open a network listener or start Vite.
+// The normal development and production entry points do not set either test marker.
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+  void startServer();
+}

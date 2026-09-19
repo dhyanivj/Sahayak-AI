@@ -26,7 +26,7 @@ export const ScannedHistoryModal: React.FC<ScannedHistoryModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs" role="dialog" aria-modal="true" aria-labelledby="scan-history-title">
       <div className="bg-white border border-neutral-200 rounded-md w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         
         {/* Header */}
@@ -36,7 +36,7 @@ export const ScannedHistoryModal: React.FC<ScannedHistoryModalProps> = ({
               <History className="w-3.5 h-3.5" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-neutral-900">
+              <h3 id="scan-history-title" className="text-sm font-semibold text-neutral-900">
                 Past Items You Checked
               </h3>
               <p className="text-xs text-neutral-500">

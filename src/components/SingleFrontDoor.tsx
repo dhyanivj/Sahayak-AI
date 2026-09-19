@@ -104,6 +104,7 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const lastMeterRenderRef = useRef(0);
 
   const isJumbo = fontSizeMode === 'jumbo';
   const isLarge = fontSizeMode === 'large' || isJumbo;
@@ -184,19 +185,25 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
 
-      const updateLevel = () => {
+      const updateLevel = (timestamp: number) => {
+        const now = Number.isFinite(timestamp) ? timestamp : performance.now();
         analyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          sum += dataArray[i];
+        // The analyser can run at display refresh rate, but a 10 FPS visual meter is just as
+        // readable and avoids re-rendering the full intake screen 60 times per second.
+        if (now - lastMeterRenderRef.current >= 100) {
+          let sum = 0;
+          for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i];
+          }
+          const avg = sum / bufferLength;
+          const normalized = Math.min(100, Math.round((avg / 128) * 100));
+          setAudioLevel(normalized);
+          lastMeterRenderRef.current = now;
         }
-        const avg = sum / bufferLength;
-        const normalized = Math.min(100, Math.round((avg / 128) * 100));
-        setAudioLevel(normalized);
         animationFrameRef.current = requestAnimationFrame(updateLevel);
       };
 
-      updateLevel();
+      animationFrameRef.current = requestAnimationFrame(updateLevel);
     } catch (e) {
       console.warn('Audio metering unavailable:', e);
     }
@@ -215,6 +222,7 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
     }
+    lastMeterRenderRef.current = 0;
     setAudioLevel(0);
   };
 
