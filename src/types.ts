@@ -91,13 +91,25 @@ export interface ScannedRecord {
   caregiverDispatched?: boolean;
 }
 
+export type AppLanguage =
+  | 'Hindi'
+  | 'English'
+  | 'Tamil'
+  | 'Telugu'
+  | 'Bengali'
+  | 'Marathi'
+  | 'Gujarati'
+  | 'Kannada';
+
 export interface UserProfile {
   name: string;
   preferredGreeting: string;
   age: number;
   primaryConcern: 'all' | 'scams' | 'medicine' | 'memory';
-  fontSizeMode: 'normal' | 'large';
+  fontSizeMode: 'normal' | 'large' | 'jumbo';
   speechRate: number;
+  appLanguage?: AppLanguage;
+  highContrastMode?: boolean;
   caregiver: CaregiverContact;
   hasCompletedOnboarding: boolean;
 }
@@ -112,5 +124,6 @@ export interface AnalyzeRequest {
     data: string; // base64
     mimeType: string;
   };
+  currentLanguage?: AppLanguage;
   userProfile?: UserProfile;
 }

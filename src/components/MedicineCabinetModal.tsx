@@ -25,7 +25,7 @@ interface MedicineCabinetModalProps {
   onDeleteMedicine: (id: string) => void;
   onToggleTaken: (id: string, takenToday: boolean) => void;
   userProfile?: UserProfile;
-  fontSizeMode?: 'normal' | 'large';
+  fontSizeMode?: 'normal' | 'large' | 'jumbo';
   speechRate?: number;
   userName?: string;
   preferredGreeting?: string;

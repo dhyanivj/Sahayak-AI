@@ -15,11 +15,11 @@ interface CaregiverLogModalProps {
 export const CaregiverLogModal: React.FC<CaregiverLogModalProps> = ({
   isOpen,
   onClose,
-  dispatches,
-  contact,
+  dispatches = [],
+  contact = { name: '', relationship: '', phone: '' },
   onUpdateContact,
   onSendManualTestAlert,
-  isSendingTest,
+  isSendingTest = false,
 }) => {
   const [isEditingContact, setIsEditingContact] = useState(false);
   const [tempContact, setTempContact] = useState<CaregiverContact>(contact);
@@ -197,7 +197,7 @@ export const CaregiverLogModal: React.FC<CaregiverLogModalProps> = ({
                     </p>
 
                     <div className="mt-2 flex items-center justify-between text-xs text-neutral-500">
-                      <span>To: {log.recipient.name} ({log.recipient.phone})</span>
+                      <span>To: {log.recipient?.name || 'Caregiver'} ({log.recipient?.phone || ''})</span>
                       <span className="text-emerald-700 font-medium">Status: Delivered</span>
                     </div>
                   </div>

@@ -30,11 +30,11 @@ import {
   Shield,
   HelpCircle,
 } from 'lucide-react';
-import { CaregiverContact, SahayakActionPayload, ClarifyMessage, MedicineItem } from '../types';
+import { CaregiverContact, SahayakActionPayload, ClarifyMessage, MedicineItem, AppLanguage } from '../types';
 
 interface ReactiveResultCardProps {
   payload: SahayakActionPayload;
-  fontSizeMode: 'normal' | 'large';
+  fontSizeMode: 'normal' | 'large' | 'jumbo';
   speechRate: number;
   caregiverContact: CaregiverContact;
   onReset: () => void;
@@ -44,6 +44,8 @@ interface ReactiveResultCardProps {
   preferredGreeting?: string;
   onAddToMedicineCabinet?: (med: Omit<MedicineItem, 'id' | 'userId' | 'addedAt'>) => void;
   onOpenMedicineCabinet?: () => void;
+  appLanguage?: AppLanguage;
+  highContrastMode?: boolean;
 }
 
 export const ReactiveResultCard: React.FC<ReactiveResultCardProps> = ({
@@ -58,6 +60,8 @@ export const ReactiveResultCard: React.FC<ReactiveResultCardProps> = ({
   preferredGreeting,
   onAddToMedicineCabinet,
   onOpenMedicineCabinet,
+  appLanguage = 'Hindi',
+  highContrastMode = false,
 }) => {
   // Current active payload (can be updated by translation)
   const [payload, setPayload] = useState<SahayakActionPayload>(initialPayload);
@@ -71,7 +75,7 @@ export const ReactiveResultCard: React.FC<ReactiveResultCardProps> = ({
 
   // Translation State
   const [isTranslating, setIsTranslating] = useState(false);
-  const [activeLanguage, setActiveLanguage] = useState<string>(payload.currentLanguage || 'English');
+  const [activeLanguage, setActiveLanguage] = useState<string>(payload.currentLanguage || appLanguage || 'Hindi');
 
   // Follow-up Conversation ("Ask Sahayak") State
   const [clarifyQuestion, setClarifyQuestion] = useState('');
@@ -82,15 +86,16 @@ export const ReactiveResultCard: React.FC<ReactiveResultCardProps> = ({
 
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const recognitionRef = useRef<any>(null);
-  const isJumbo = fontSizeMode === 'large';
+  const isJumbo = fontSizeMode === 'jumbo';
+  const isLarge = fontSizeMode === 'large' || fontSizeMode === 'jumbo';
 
   // Keep payload in sync if initialPayload changes
   useEffect(() => {
     setPayload(initialPayload);
-    setActiveLanguage(initialPayload.currentLanguage || 'English');
+    setActiveLanguage(initialPayload.currentLanguage || appLanguage || 'Hindi');
     setClarifyMessages([]);
     setIsAddedToCabinet(false);
-  }, [initialPayload]);
+  }, [initialPayload, appLanguage]);
 
   // Clean phone digits for WhatsApp
   const cleanPhoneDigits = caregiverContact.phone.replace(/[^0-9]/g, '');
@@ -122,6 +127,8 @@ export const ReactiveResultCard: React.FC<ReactiveResultCardProps> = ({
       case 'Telugu': return 'te-IN';
       case 'Bengali': return 'bn-IN';
       case 'Marathi': return 'mr-IN';
+      case 'Gujarati': return 'gu-IN';
+      case 'Kannada': return 'kn-IN';
       case 'Spanish': return 'es-ES';
       default: return 'en-US';
     }

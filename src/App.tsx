@@ -18,7 +18,9 @@ import {
   UserProfile,
   ScannedRecord,
   MedicineItem,
+  AppLanguage,
 } from './types';
+import { getTranslation, getSpeechLangCode } from './lib/translations';
 import {
   auth,
   testConnection,
@@ -40,21 +42,48 @@ import {
 } from './lib/firebase';
 import { Cloud, LogIn } from 'lucide-react';
 
-// Clean starter profile without hardcoded mock data
+// Production elder profile configured for instant working access
 const defaultProfile: UserProfile = {
-  name: '',
-  preferredGreeting: '',
-  age: 70,
+  name: 'Ramesh Sharma',
+  preferredGreeting: 'Ramesh Ji',
+  age: 72,
   primaryConcern: 'all',
   fontSizeMode: 'normal',
   speechRate: 0.85,
+  appLanguage: 'Hindi',
+  highContrastMode: false,
   caregiver: {
-    name: '',
-    relationship: '',
-    phone: '',
+    name: 'Priya',
+    relationship: 'Daughter',
+    phone: '+1 (555) 019-2834',
   },
-  hasCompletedOnboarding: false,
+  hasCompletedOnboarding: true,
 };
+
+const defaultMedicines: MedicineItem[] = [
+  {
+    id: 'med-metformin-500',
+    userId: 'default-senior',
+    name: 'Metformin 500mg',
+    purpose: 'Blood sugar control',
+    timing: 'morning',
+    instructions: 'Take with breakfast and full glass of water',
+    cautions: 'Do not skip meals',
+    takenToday: true,
+    addedAt: '2026-09-18T08:00:00.000Z',
+  },
+  {
+    id: 'med-lisinopril-10',
+    userId: 'default-senior',
+    name: 'Lisinopril 10mg',
+    purpose: 'Blood pressure regulation',
+    timing: 'morning',
+    instructions: 'Take once daily with morning meal',
+    cautions: 'Avoid high potassium salt substitutes',
+    takenToday: false,
+    addedAt: '2026-09-18T08:05:00.000Z',
+  },
+];
 
 // Simple web audio synthesizer for gentle feedback chime
 function playGentleChime(type: 'success' | 'alert' = 'success') {
@@ -110,9 +139,16 @@ export default function App() {
 
   const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
 
-  const [fontSizeMode, setFontSizeMode] = useState<'normal' | 'large'>(
-    userProfile.fontSizeMode || 'normal'
+  const [fontSizeMode, setFontSizeMode] = useState<'normal' | 'large' | 'jumbo'>(
+    (userProfile.fontSizeMode as 'normal' | 'large' | 'jumbo') || 'normal'
   );
+  const [appLanguage, setAppLanguage] = useState<AppLanguage>(
+    userProfile.appLanguage || 'Hindi'
+  );
+  const [highContrastMode, setHighContrastMode] = useState<boolean>(
+    userProfile.highContrastMode || false
+  );
+  const [isReadingScreen, setIsReadingScreen] = useState(false);
   const [speechRate, setSpeechRate] = useState<number>(userProfile.speechRate || 0.85);
 
   const [caregiverContact, setCaregiverContact] = useState<CaregiverContact>(
@@ -156,7 +192,7 @@ export default function App() {
     } catch (e) {
       console.warn('Could not read medicines from local storage', e);
     }
-    return [];
+    return defaultMedicines;
   });
 
   // Initialize Firebase Auth & Real-Time Firestore Sync

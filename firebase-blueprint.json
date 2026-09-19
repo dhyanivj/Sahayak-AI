@@ -31,7 +31,7 @@
         "fontSizeMode": {
           "type": "string",
           "description": "Display font size preference",
-          "enum": ["normal", "large"]
+          "enum": ["normal", "large", "jumbo"]
         },
         "speechRate": {
           "type": "number",

@@ -9,8 +9,11 @@ import {
   ArrowRight,
   ZoomIn,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import { LiveCameraModal } from './LiveCameraModal';
+import { AppLanguage } from '../types';
+import { getTranslation, getSpeechLangCode, PresetItem } from '../lib/translations';
 
 interface SingleFrontDoorProps {
   onAnalyze: (data: {
@@ -19,9 +22,11 @@ interface SingleFrontDoorProps {
     audio?: { data: string; mimeType: string };
   }) => Promise<void>;
   isLoading: boolean;
-  fontSizeMode: 'normal' | 'large';
+  fontSizeMode: 'normal' | 'large' | 'jumbo';
   preferredGreeting?: string;
   userName?: string;
+  appLanguage?: AppLanguage;
+  highContrastMode?: boolean;
 }
 
 // Convert any SVG or image into a guaranteed clean raster JPEG for Gemini Multimodal Vision
@@ -73,7 +78,11 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
   fontSizeMode,
   preferredGreeting,
   userName,
+  appLanguage = 'English',
+  highContrastMode = false,
 }) => {
+  const t = getTranslation(appLanguage);
+
   const [selectedImage, setSelectedImage] = useState<{
     dataUrl: string;
     base64: string;
@@ -95,9 +104,10 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  const isJumbo = fontSizeMode === 'large';
+  const isJumbo = fontSizeMode === 'jumbo';
+  const isLarge = fontSizeMode === 'large' || isJumbo;
 
-  // Setup Web Speech API + Audio Frequency Visualizer
+  // Setup Web Speech API + Audio Frequency Visualizer calibrated for selected language
   useEffect(() => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -106,11 +116,16 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = 'en-US';
+      recognition.lang = getSpeechLangCode(appLanguage);
 
       recognition.onstart = () => {
         setIsListening(true);
         setSpeechError(null);
+        if ('vibrate' in navigator) {
+          try {
+            navigator.vibrate(40);
+          } catch {}
+        }
       };
 
       recognition.onresult = (event: any) => {
@@ -148,7 +163,7 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
         }
       }
     };
-  }, []);
+  }, [appLanguage]);
 
   // Monitor live microphone volume levels
   const startAudioLevelMonitoring = async () => {
@@ -156,6 +171,7 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
       const audioCtx = new AudioContextClass();
       audioContextRef.current = audioCtx;
 
@@ -235,6 +251,12 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
       return;
     }
 
+    if ('vibrate' in navigator) {
+      try {
+        navigator.vibrate(30);
+      } catch {}
+    }
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       const resultDataUrl = e.target?.result as string;
@@ -258,6 +280,11 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
   };
 
   const handleCameraCapture = async (imageDataUrl: string) => {
+    if ('vibrate' in navigator) {
+      try {
+        navigator.vibrate([40, 30, 40]);
+      } catch {}
+    }
     const rasterized = await ensureRasterImage(imageDataUrl, 'image/jpeg');
     setSelectedImage({
       dataUrl: rasterized.dataUrl,
@@ -276,9 +303,17 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
     }
 
     if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch {}
       stopAudioLevelMonitoring();
       setIsListening(false);
+    }
+
+    if ('vibrate' in navigator) {
+      try {
+        navigator.vibrate(50);
+      } catch {}
     }
 
     await onAnalyze({
@@ -292,6 +327,11 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
     });
   };
 
+  const handlePresetSelect = (preset: PresetItem) => {
+    setTextInput(preset.text);
+    handleSubmit(preset.text);
+  };
+
   return (
     <div className="space-y-6">
       
@@ -303,25 +343,49 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
       />
 
       {/* Page Title Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-5 border-b border-neutral-200">
+      <div
+        className={`flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-5 border-b ${
+          highContrastMode ? 'border-yellow-400' : 'border-neutral-200'
+        }`}
+      >
         <div>
-          <div className="flex items-center gap-2 text-xs text-neutral-500 font-medium mb-1">
-            <span>Sahayak Safety Companion</span>
-            <span>·</span>
-            <span>Elder Care Protection</span>
+          <div
+            className={`flex items-center gap-2 text-xs font-semibold mb-1 ${
+              highContrastMode ? 'text-yellow-300' : 'text-neutral-500'
+            }`}
+          >
+            <span>{t.frontDoor.subHeader}</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-900">
-            Check a Document or Ask a Question
+          <h2
+            className={`font-extrabold tracking-tight ${
+              isJumbo
+                ? 'text-3xl sm:text-4xl'
+                : isLarge
+                ? 'text-2xl sm:text-3xl'
+                : 'text-xl sm:text-2xl'
+            } ${highContrastMode ? 'text-yellow-400' : 'text-neutral-900'}`}
+          >
+            {t.frontDoor.title}
           </h2>
-          <p className="text-xs sm:text-sm text-neutral-600 mt-1 max-w-xl leading-relaxed">
-            Take a picture of a bill, medicine bottle, or letter — or speak your question aloud. We will explain it simply and alert family if anything looks unsafe.
+          <p
+            className={`mt-1.5 max-w-2xl leading-relaxed ${
+              isJumbo ? 'text-base sm:text-lg' : 'text-xs sm:text-sm'
+            } ${highContrastMode ? 'text-neutral-200' : 'text-neutral-600'}`}
+          >
+            {t.frontDoor.description}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 text-xs font-medium text-emerald-800">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>Fraud &amp; Safety Protection: Active</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+              highContrastMode
+                ? 'border-2 border-yellow-400 bg-black text-yellow-300'
+                : 'border border-emerald-200 bg-emerald-50 text-emerald-800'
+            }`}
+          >
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>{t.frontDoor.safetyPill}</span>
           </span>
         </div>
       </div>
@@ -337,32 +401,62 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
           }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
-          className={`p-5 rounded-md border transition-colors flex flex-col justify-between ${
-            dragOver
+          className={`p-5 rounded-md border transition-all flex flex-col justify-between ${
+            highContrastMode
+              ? dragOver
+                ? 'border-4 border-yellow-400 bg-neutral-900'
+                : 'border-2 border-neutral-700 bg-neutral-950 text-white hover:border-yellow-400'
+              : dragOver
               ? 'border-neutral-900 bg-neutral-50'
               : 'border-neutral-200 bg-white hover:border-neutral-300'
-          } min-h-[280px]`}
+          } min-h-[290px]`}
         >
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-neutral-500 font-bold">[1]</span>
-                <h3 className="text-sm font-semibold text-neutral-900">
-                  Add a Photo or Letter
+                <span
+                  className={`text-xs font-extrabold ${
+                    highContrastMode ? 'text-yellow-400' : 'text-neutral-500'
+                  }`}
+                >
+                  [1]
+                </span>
+                <h3
+                  className={`font-bold ${isJumbo ? 'text-lg' : 'text-sm'} ${
+                    highContrastMode ? 'text-white' : 'text-neutral-900'
+                  }`}
+                >
+                  {t.frontDoor.dropTitle}
                 </h3>
               </div>
-              <span className="text-[11px] text-neutral-500 px-2 py-0.5 rounded border border-neutral-200 bg-neutral-50">
-                Photo or Document
+              <span
+                className={`text-[11px] px-2 py-0.5 rounded font-medium border ${
+                  highContrastMode
+                    ? 'border-neutral-700 bg-neutral-900 text-yellow-300'
+                    : 'border-neutral-200 bg-neutral-50 text-neutral-500'
+                }`}
+              >
+                {t.frontDoor.dropHint.split(' ')[0]}
               </span>
             </div>
 
-            <p className="text-xs text-neutral-600 mb-4">
-              Hold up a bill, prescription label, medicine bottle, or printed letter:
+            <p
+              className={`mb-4 ${isJumbo ? 'text-sm' : 'text-xs'} ${
+                highContrastMode ? 'text-neutral-300' : 'text-neutral-600'
+              }`}
+            >
+              {t.frontDoor.dropDesc}
             </p>
 
             {/* Selected Image Preview with High-Contrast Zoom */}
             {selectedImage ? (
-              <div className="relative rounded-md overflow-hidden border border-neutral-200 bg-neutral-50 p-3 mb-4">
+              <div
+                className={`relative rounded-md overflow-hidden border p-3 mb-4 ${
+                  highContrastMode
+                    ? 'border-2 border-yellow-400 bg-neutral-900'
+                    : 'border-neutral-200 bg-neutral-50'
+                }`}
+              >
                 <div className="relative max-h-48 overflow-hidden rounded flex items-center justify-center bg-white border border-neutral-200">
                   <img
                     src={selectedImage.dataUrl}
@@ -375,17 +469,21 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
                   <button
                     type="button"
                     onClick={() => setHasPreviewZoom(!hasPreviewZoom)}
-                    className="absolute bottom-2 right-2 bg-neutral-900 text-white text-[11px] px-2 py-0.5 rounded flex items-center gap-1 opacity-90 hover:opacity-100 cursor-pointer"
-                    title="Toggle zoom preview"
+                    className="absolute bottom-2 right-2 bg-neutral-900 text-white text-[11px] px-2 py-1 rounded flex items-center gap-1 opacity-90 hover:opacity-100 cursor-pointer"
+                    title={t.frontDoor.zoomImage}
                   >
-                    <ZoomIn className="w-3 h-3" />
-                    <span>{hasPreviewZoom ? 'Normal Size' : 'Enlarge'}</span>
+                    <ZoomIn className="w-3.5 h-3.5" />
+                    <span>{hasPreviewZoom ? '1x' : t.frontDoor.zoomImage}</span>
                   </button>
                 </div>
                 
                 <div className="flex items-center justify-between mt-2.5">
-                  <p className="text-xs text-neutral-800 truncate max-w-[200px]">
-                    {selectedImage.filename || 'Photo attached'}
+                  <p
+                    className={`text-xs font-semibold truncate max-w-[200px] ${
+                      highContrastMode ? 'text-yellow-300' : 'text-neutral-800'
+                    }`}
+                  >
+                    {selectedImage.filename || t.frontDoor.imageSelected}
                   </p>
                   <button
                     type="button"
@@ -394,10 +492,14 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
                       setSelectedImage(null);
                       setHasPreviewZoom(false);
                     }}
-                    className="text-xs text-neutral-600 hover:text-neutral-900 border border-neutral-200 hover:border-neutral-900 bg-white px-2 py-0.5 rounded flex items-center gap-1 transition-colors cursor-pointer"
+                    className={`text-xs px-2.5 py-1 rounded flex items-center gap-1 transition-colors cursor-pointer border font-semibold ${
+                      highContrastMode
+                        ? 'border-red-500 bg-red-950 text-red-300 hover:bg-red-900'
+                        : 'border-neutral-200 hover:border-neutral-900 bg-white text-neutral-600 hover:text-neutral-900'
+                    }`}
                   >
-                    <X className="w-3 h-3" />
-                    <span>Remove</span>
+                    <X className="w-3.5 h-3.5" />
+                    <span>{t.frontDoor.removeImage}</span>
                   </button>
                 </div>
               </div>
@@ -409,18 +511,23 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
                   type="button"
                   id="btn-open-live-camera"
                   onClick={() => setIsCameraModalOpen(true)}
-                  className="h-24 rounded-md border border-neutral-200 hover:border-neutral-900 bg-white hover:bg-neutral-50 transition-colors flex flex-col items-center justify-center gap-2 text-center p-3 cursor-pointer select-none"
-                  title="Take a photo with your camera"
+                  className={`h-28 rounded-md border transition-all flex flex-col items-center justify-center gap-2 text-center p-3 cursor-pointer select-none ${
+                    highContrastMode
+                      ? 'border-2 border-yellow-400 bg-neutral-900 hover:bg-black text-yellow-300'
+                      : 'border-neutral-200 hover:border-neutral-900 bg-white hover:bg-neutral-50 text-neutral-900 shadow-2xs'
+                  }`}
+                  title={t.frontDoor.cameraBtn}
                 >
-                  <div className="w-8 h-8 rounded border border-neutral-200 bg-neutral-50 flex items-center justify-center text-neutral-900">
-                    <Camera className="w-4 h-4" />
+                  <div
+                    className={`w-9 h-9 rounded flex items-center justify-center ${
+                      highContrastMode ? 'bg-yellow-400 text-black' : 'border border-neutral-200 bg-neutral-50 text-neutral-900'
+                    }`}
+                  >
+                    <Camera className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="block text-xs font-semibold text-neutral-900">
-                      Use Camera
-                    </span>
-                    <span className="block text-[11px] text-neutral-500">
-                      Take photo now
+                    <span className={`block font-bold ${isJumbo ? 'text-sm' : 'text-xs'}`}>
+                      {t.frontDoor.cameraBtn}
                     </span>
                   </div>
                 </button>
@@ -430,18 +537,23 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
                   type="button"
                   id="btn-upload-file-picker"
                   onClick={() => fileInputRef.current?.click()}
-                  className="h-24 rounded-md border border-neutral-200 hover:border-neutral-900 bg-white hover:bg-neutral-50 transition-colors flex flex-col items-center justify-center gap-2 text-center p-3 cursor-pointer select-none"
-                  title="Upload a saved photo from your device"
+                  className={`h-28 rounded-md border transition-all flex flex-col items-center justify-center gap-2 text-center p-3 cursor-pointer select-none ${
+                    highContrastMode
+                      ? 'border-2 border-neutral-700 hover:border-yellow-400 bg-neutral-900 hover:bg-black text-white'
+                      : 'border-neutral-200 hover:border-neutral-900 bg-white hover:bg-neutral-50 text-neutral-900 shadow-2xs'
+                  }`}
+                  title={t.frontDoor.uploadBtn}
                 >
-                  <div className="w-8 h-8 rounded border border-neutral-200 bg-neutral-50 flex items-center justify-center text-neutral-900">
-                    <Upload className="w-4 h-4" />
+                  <div
+                    className={`w-9 h-9 rounded flex items-center justify-center ${
+                      highContrastMode ? 'bg-neutral-800 text-white' : 'border border-neutral-200 bg-neutral-50 text-neutral-900'
+                    }`}
+                  >
+                    <Upload className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="block text-xs font-semibold text-neutral-900">
-                      Upload Photo
-                    </span>
-                    <span className="block text-[11px] text-neutral-500">
-                      From your device
+                    <span className={`block font-bold ${isJumbo ? 'text-sm' : 'text-xs'}`}>
+                      {t.frontDoor.uploadBtn}
                     </span>
                   </div>
                 </button>
@@ -462,28 +574,58 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
             />
           </div>
 
-          <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-500">
-            Take a picture with your camera or drag an image here
+          <div
+            className={`pt-2 border-t text-xs ${
+              highContrastMode ? 'border-neutral-800 text-neutral-400' : 'border-neutral-100 text-neutral-500'
+            }`}
+          >
+            {t.frontDoor.dropHint}
           </div>
         </div>
 
         {/* Right Column: Audio & Voice Dictation */}
-        <div className="p-5 rounded-md border border-neutral-200 bg-white hover:border-neutral-300 transition-colors flex flex-col justify-between min-h-[280px]">
+        <div
+          className={`p-5 rounded-md border transition-all flex flex-col justify-between min-h-[290px] ${
+            highContrastMode
+              ? 'border-2 border-neutral-700 bg-neutral-950 text-white hover:border-yellow-400'
+              : 'border-neutral-200 bg-white hover:border-neutral-300'
+          }`}
+        >
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-neutral-500 font-bold">[2]</span>
-                <h3 className="text-sm font-semibold text-neutral-900">
-                  Speak Your Question
+                <span
+                  className={`text-xs font-extrabold ${
+                    highContrastMode ? 'text-yellow-400' : 'text-neutral-500'
+                  }`}
+                >
+                  [2]
+                </span>
+                <h3
+                  className={`font-bold ${isJumbo ? 'text-lg' : 'text-sm'} ${
+                    highContrastMode ? 'text-white' : 'text-neutral-900'
+                  }`}
+                >
+                  {t.frontDoor.voiceTitle}
                 </h3>
               </div>
-              <span className="text-[11px] text-neutral-500 px-2 py-0.5 rounded border border-neutral-200 bg-neutral-50">
-                Voice Microphone
+              <span
+                className={`text-[11px] px-2 py-0.5 rounded font-medium border ${
+                  highContrastMode
+                    ? 'border-neutral-700 bg-neutral-900 text-yellow-300'
+                    : 'border-neutral-200 bg-neutral-50 text-neutral-500'
+                }`}
+              >
+                {t.frontDoor.micBtn.split(' ')[0]}
               </span>
             </div>
 
-            <p className="text-xs text-neutral-600 mb-4">
-              Press the round button below and speak whatever you need help with:
+            <p
+              className={`mb-4 ${isJumbo ? 'text-sm' : 'text-xs'} ${
+                highContrastMode ? 'text-neutral-300' : 'text-neutral-600'
+              }`}
+            >
+              {t.frontDoor.voiceDesc}
             </p>
 
             {/* Microphone Button */}
@@ -492,31 +634,40 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
                 type="button"
                 id="btn-toggle-microphone"
                 onClick={toggleListening}
-                className={`w-20 h-20 rounded-full flex flex-col items-center justify-center transition-all cursor-pointer select-none ${
+                className={`w-24 h-24 rounded-full flex flex-col items-center justify-center transition-all cursor-pointer select-none ${
                   isListening
-                    ? 'bg-neutral-900 text-white ring-2 ring-neutral-900 ring-offset-2'
-                    : 'bg-white border border-neutral-300 hover:border-neutral-900 text-neutral-900 shadow-2xs'
+                    ? highContrastMode
+                      ? 'bg-yellow-400 text-black ring-4 ring-yellow-400 ring-offset-4 ring-offset-black animate-pulse'
+                      : 'bg-neutral-900 text-white ring-4 ring-neutral-900 ring-offset-2 animate-pulse'
+                    : highContrastMode
+                    ? 'bg-neutral-900 border-2 border-yellow-400 text-yellow-300 hover:bg-neutral-800 shadow-md'
+                    : 'bg-white border-2 border-neutral-300 hover:border-neutral-900 text-neutral-900 shadow-sm'
                 }`}
-                title={isListening ? 'Stop listening' : 'Start speaking'}
+                title={isListening ? t.frontDoor.micStop : t.frontDoor.micBtn}
+                aria-label={isListening ? t.frontDoor.micStop : t.frontDoor.micBtn}
               >
-                <Mic className="w-6 h-6" />
-                <span className="text-[11px] font-medium mt-1">
-                  {isListening ? 'Listening...' : 'Tap to Speak'}
+                <Mic className="w-7 h-7" />
+                <span className="text-xs font-bold mt-1 text-center px-2 leading-tight">
+                  {isListening ? t.frontDoor.micStop : t.frontDoor.micBtn}
                 </span>
               </button>
 
-              {/* Decibel meter */}
+              {/* Decibel audio meter */}
               {isListening && (
-                <div className="mt-3 flex items-center gap-2 text-xs text-neutral-700">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Hearing your voice clearly</span>
-                  <div className="flex items-center gap-1">
+                <div className="mt-3 flex items-center gap-2 text-xs font-semibold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                  <span className={highContrastMode ? 'text-yellow-300' : 'text-neutral-700'}>
+                    {t.frontDoor.micListening}
+                  </span>
+                  <div className="flex items-center gap-1 ml-1">
                     {[8, 16, 24, 32, 24, 16, 8].map((h, idx) => (
                       <span
                         key={idx}
-                        className="w-1 bg-neutral-900 rounded-full transition-all duration-75"
+                        className={`w-1 rounded-full transition-all duration-75 ${
+                          highContrastMode ? 'bg-yellow-400' : 'bg-neutral-900'
+                        }`}
                         style={{
-                          height: `${Math.max(4, Math.min(18, (audioLevel / 100) * h))}px`,
+                          height: `${Math.max(4, Math.min(22, (audioLevel / 100) * h))}px`,
                         }}
                       />
                     ))}
@@ -525,31 +676,53 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
               )}
 
               {speechError && (
-                <div className="mt-3 p-2.5 rounded border border-neutral-200 bg-neutral-50 text-neutral-800 text-xs flex items-center gap-1.5 max-w-sm">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-neutral-600" />
+                <div
+                  className={`mt-3 p-2.5 rounded border text-xs flex items-center gap-1.5 max-w-sm ${
+                    highContrastMode
+                      ? 'border-yellow-400 bg-neutral-900 text-yellow-200'
+                      : 'border-neutral-200 bg-neutral-50 text-neutral-800'
+                  }`}
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
                   <span>{speechError}</span>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-500">
-            For example: &ldquo;Is this message asking for electricity bill money authentic?&rdquo;
+          <div
+            className={`pt-2 border-t text-xs ${
+              highContrastMode ? 'border-neutral-800 text-neutral-400' : 'border-neutral-100 text-neutral-500'
+            }`}
+          >
+            {t.frontDoor.voiceDesc}
           </div>
         </div>
 
       </div>
 
       {/* Transcript & Prompt Input Console */}
-      <div className="p-5 rounded-md border border-neutral-200 bg-white">
+      <div
+        className={`p-5 rounded-md border ${
+          highContrastMode ? 'border-2 border-neutral-700 bg-neutral-950 text-white' : 'border-neutral-200 bg-white'
+        }`}
+      >
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-neutral-500 font-bold">[3]</span>
+            <span
+              className={`text-xs font-extrabold ${
+                highContrastMode ? 'text-yellow-400' : 'text-neutral-500'
+              }`}
+            >
+              [3]
+            </span>
             <label
               htmlFor="input-message-text"
-              className="text-xs font-semibold uppercase tracking-wider text-neutral-700"
+              className={`text-xs font-bold uppercase tracking-wider ${
+                highContrastMode ? 'text-yellow-300' : 'text-neutral-700'
+              }`}
             >
-              Your Question or Message Text (Optional)
+              {t.frontDoor.voiceTitle}
             </label>
           </div>
           {textInput && (
@@ -557,9 +730,11 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
               id="btn-clear-text"
               type="button"
               onClick={() => setTextInput('')}
-              className="text-xs text-neutral-500 hover:text-neutral-900 cursor-pointer"
+              className={`text-xs font-semibold cursor-pointer ${
+                highContrastMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'
+              }`}
             >
-              Clear Text
+              {t.frontDoor.clearBtn}
             </button>
           )}
         </div>
@@ -569,17 +744,27 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
           rows={3}
           value={textInput}
           onChange={(e) => setTextInput(e.target.value)}
-          placeholder="Paste a text message you received, or type any question you have..."
-          className={`w-full p-3 rounded-md border border-neutral-200 text-neutral-900 bg-white focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 leading-relaxed outline-none transition-colors ${
-            isJumbo ? 'text-lg' : 'text-sm'
-          }`}
+          placeholder={t.frontDoor.inputPlaceholder}
+          className={`w-full p-3 rounded-md border leading-relaxed outline-none transition-all ${
+            highContrastMode
+              ? 'border-2 border-neutral-700 bg-neutral-900 text-white placeholder-neutral-500 focus:border-yellow-400'
+              : 'border-neutral-200 text-neutral-900 bg-white focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900'
+          } ${isJumbo ? 'text-xl' : isLarge ? 'text-lg' : 'text-sm'}`}
         />
 
         {/* Action Trigger Bar */}
-        <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-neutral-100">
-          <div className="flex items-center gap-2 text-xs text-neutral-500">
-            <ShieldCheck className="w-3.5 h-3.5 text-neutral-700 shrink-0" />
-            <span>Private &amp; Confidential · Your data is never shared</span>
+        <div
+          className={`mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t ${
+            highContrastMode ? 'border-neutral-800' : 'border-neutral-100'
+          }`}
+        >
+          <div
+            className={`flex items-center gap-2 text-xs ${
+              highContrastMode ? 'text-neutral-400' : 'text-neutral-500'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span>Private &amp; Confidential · 100% Protected</span>
           </div>
 
           <button
@@ -587,24 +772,98 @@ export const SingleFrontDoor: React.FC<SingleFrontDoorProps> = ({
             type="button"
             disabled={isLoading || (!selectedImage && !textInput.trim())}
             onClick={() => handleSubmit()}
-            className={`h-10 px-5 rounded-md text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer select-none ${
+            className={`h-12 px-6 rounded-md font-bold flex items-center justify-center gap-2 transition-all cursor-pointer select-none ${
+              isJumbo ? 'text-base' : 'text-sm'
+            } ${
               isLoading || (!selectedImage && !textInput.trim())
-                ? 'bg-neutral-100 text-neutral-400 border border-neutral-200 cursor-not-allowed'
-                : 'bg-black hover:bg-neutral-800 text-white border border-black shadow-2xs'
+                ? highContrastMode
+                  ? 'bg-neutral-800 text-neutral-600 border border-neutral-800 cursor-not-allowed'
+                  : 'bg-neutral-100 text-neutral-400 border border-neutral-200 cursor-not-allowed'
+                : highContrastMode
+                ? 'bg-yellow-400 hover:bg-yellow-300 text-black border-2 border-yellow-500 shadow-md font-extrabold'
+                : 'bg-black hover:bg-neutral-800 text-white border border-black shadow-sm'
             }`}
           >
             {isLoading ? (
               <>
-                <Clock className="w-4 h-4 animate-spin" />
-                <span>Checking your item...</span>
+                <Clock className="w-5 h-5 animate-spin" />
+                <span>{t.frontDoor.analyzingBtn}</span>
               </>
             ) : (
               <>
-                <span>Check This Item</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>{t.frontDoor.submitBtn}</span>
+                <ArrowRight className="w-5 h-5" />
               </>
             )}
           </button>
+        </div>
+      </div>
+
+      {/* 1-Click Realistic Scenarios Presets (Multilingual!) */}
+      <div
+        className={`p-5 rounded-md border ${
+          highContrastMode ? 'border-2 border-neutral-700 bg-neutral-950 text-white' : 'border-neutral-200 bg-neutral-50/70'
+        }`}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="w-4 h-4 text-amber-500" />
+          <h3
+            className={`font-bold ${isJumbo ? 'text-base' : 'text-xs uppercase tracking-wider'} ${
+              highContrastMode ? 'text-yellow-300' : 'text-neutral-700'
+            }`}
+          >
+            {t.frontDoor.presetHeader}
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {t.frontDoor.presets.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => handlePresetSelect(p)}
+              className={`p-3 rounded-md border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                highContrastMode
+                  ? 'border-neutral-700 bg-neutral-900 hover:border-yellow-400 hover:bg-black text-white'
+                  : 'border-neutral-200 bg-white hover:border-neutral-900 hover:shadow-2xs text-neutral-900'
+              }`}
+              title={p.desc}
+            >
+              <div>
+                <span
+                  className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mb-1.5 ${
+                    p.type === 'scam'
+                      ? highContrastMode
+                        ? 'bg-red-950 text-red-300 border border-red-700'
+                        : 'bg-red-50 text-red-700 border border-red-200'
+                      : p.type === 'medicine'
+                      ? highContrastMode
+                        ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
+                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : highContrastMode
+                      ? 'bg-purple-950 text-purple-300 border border-purple-700'
+                      : 'bg-purple-50 text-purple-700 border border-purple-200'
+                  }`}
+                >
+                  {p.tag}
+                </span>
+                <h4 className={`font-bold line-clamp-1 ${isJumbo ? 'text-sm' : 'text-xs'}`}>
+                  {p.title}
+                </h4>
+                <p
+                  className={`line-clamp-2 mt-1 ${isJumbo ? 'text-xs' : 'text-[11px]'} ${
+                    highContrastMode ? 'text-neutral-300' : 'text-neutral-500'
+                  }`}
+                >
+                  {p.desc}
+                </p>
+              </div>
+              <div className="mt-2 pt-2 border-t border-neutral-100 flex items-center justify-between text-[11px] font-semibold text-emerald-600">
+                <span>Try now</span>
+                <ArrowRight className="w-3 h-3" />
+              </div>
+            </button>
+          ))}
         </div>
       </div>
 

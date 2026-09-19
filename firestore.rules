@@ -32,7 +32,7 @@ service cloud.firestore {
       return data.keys().hasAll(['userId', 'name', 'fontSizeMode', 'speechRate', 'hasCompletedOnboarding'])
         && data.userId == request.auth.uid
         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
-        && data.fontSizeMode in ['normal', 'large']
+        && data.fontSizeMode in ['normal', 'large', 'jumbo']
         && data.speechRate is number && data.speechRate >= 0.5 && data.speechRate <= 2.0
         && data.hasCompletedOnboarding is bool
         && (!('age' in data) || (data.age is number && data.age >= 10 && data.age <= 120))

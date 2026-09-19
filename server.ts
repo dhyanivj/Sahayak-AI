@@ -9,16 +9,24 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
+// Security: Disable express fingerprinting
+app.disable('x-powered-by');
+
 // Support large image base64 uploads with secure parsing
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
-// 1. Comprehensive Security Headers Middleware
+// 1. Comprehensive Security Headers Middleware (OWASP Hardened)
 app.use((_req, res, next) => {
+  res.removeHeader('X-Powered-By');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-DNS-Prefetch-Control', 'off');
+  res.setHeader('X-Download-Options', 'noopen');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   res.setHeader(
     'Permissions-Policy',
     'camera=(self), microphone=(self), geolocation=()'
@@ -67,7 +75,9 @@ export function sanitizeElderText(text: unknown): string {
   if (typeof text !== 'string') return '';
   return text
     .replace(/\0/g, '') // remove null bytes
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // remove scripts
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // remove script tags
+    .replace(/javascript:/gi, '') // remove javascript pseudo-protocol
+    .replace(/on\w+\s*=/gi, '') // remove inline DOM event handlers
     .trim();
 }
 
@@ -237,17 +247,26 @@ app.post('/api/analyze', async (req, res) => {
     const seniorAge = userProfile?.age || 71;
     const caregiverName = userProfile?.caregiver?.name || 'Priya';
     const caregiverRel = userProfile?.caregiver?.relationship || 'Daughter';
+    const targetLanguage = req.body.currentLanguage || userProfile?.appLanguage || 'Hindi';
 
     const systemInstruction = `You are Sahayak AI (Aura), an autonomous multimodal life and safety companion engineered specifically for older adults.
 You are currently assisting ${seniorName} (prefers to be addressed as "${seniorGreeting}", age ${seniorAge}).
 Their designated family emergency caregiver is ${caregiverName} (${caregiverRel}).
 Your primary users have presbyopia, mild hand tremors, digital anxiety, and heightened vulnerability to cyber/financial fraud.
 
+TARGET LANGUAGE REQUIREMENT:
+The user has configured their preferred language as: "${targetLanguage}".
+You MUST generate ALL human-facing fields (headline, bullets, voice_readout, confidence_reason, scamDetails, medicineDetails) natively in "${targetLanguage}".
+- If "${targetLanguage}" is Hindi, output natural, respectful Devanagari Hindi with warm elder honorifics (e.g., "जी", "आप").
+- If "${targetLanguage}" is Tamil, Bengali, Telugu, Marathi, Gujarati, or Kannada, output natural, fluent text in their respective native scripts.
+- If "${targetLanguage}" is English, output plain, clear English.
+- The voice_readout MUST be written specifically to sound soothing, respectful, and natural when read aloud by text-to-speech in "${targetLanguage}".
+
 OPERATIONAL INSTRUCTIONS:
 1. Classify the input into exactly ONE of these four operational modes:
    - "SAFETY_BILL_SCAM": Scrutinize payment demands, utility disconnection notices, bank SMS, lottery/prize claims, suspicious APK downloads, urgent threats, and phishing attempts. Look for urgency markers, suspicious phone numbers/links, high-pressure phrasing, and fake executive claims.
    - "HEALTH_PILL": Ingest medicine packaging, prescriptions, blister packs, pill bottles. Extract drug names, dosage cadence, whether to take with meals, and safety rules.
-     CRITICAL MEDICAL GUARDRAIL: If the image is blurry, pill name is cut off, partially obstructed, or unidentifiable, YOU MUST NEVER GUESS. Set is_urgent_or_scam: true. In the headline state "Medicine Unclear - Verification Needed". In bullets and voice_readout include: "Image unclear. Please show this bottle directly to your pharmacist or doctor before consuming."
+     CRITICAL MEDICAL GUARDRAIL: If the image is blurry, pill name is cut off, partially obstructed, or unidentifiable, YOU MUST NEVER GUESS. Set is_urgent_or_scam: true. In the headline state "Medicine Unclear - Verification Needed" (in ${targetLanguage}). In bullets and voice_readout include: "Image unclear. Please show this bottle directly to your pharmacist or doctor before consuming."
    - "MEMORY_STIMULATION": Ingest legacy family photos, old relics, sepia prints, wedding photos, childhood memories. Prompt gentle, comforting reminiscence dialogues.
    - "SMART_ASSIST": Translate conversational spoken instructions (e.g. "It's too warm in the room", "Please remind me to drink water", "I can't find my reading glasses") into deterministic, concrete action steps.
 
@@ -363,6 +382,7 @@ OPERATIONAL INSTRUCTIONS:
     }
 
     const payload = JSON.parse(responseText);
+    payload.currentLanguage = targetLanguage;
 
     // Normalize caregiver_alert null if empty string
     if (!payload.caregiver_alert || payload.caregiver_alert.trim() === '') {
@@ -393,6 +413,7 @@ app.post('/api/clarify', async (req, res) => {
     const ai = getGeminiClient();
     const seniorGreeting = userProfile?.preferredGreeting || userProfile?.name || 'Friend';
     const seniorAge = userProfile?.age || 70;
+    const targetLang = req.body.currentLanguage || currentPayload?.currentLanguage || userProfile?.appLanguage || 'Hindi';
 
     const systemInstruction = `You are Sahayak AI, speaking directly and warmly with ${seniorGreeting} (age ${seniorAge}).
 They just had a document, bill, or medicine analyzed.
@@ -411,7 +432,8 @@ RULES FOR YOUR ANSWER:
 2. Address ${seniorGreeting} with utmost respect.
 3. Keep the answer concise (2-4 sentences maximum) so it is easy to listen to or read on a large screen.
 4. If this is a medical question: remind them gently that for dosage changes, always check with their doctor or pharmacist.
-5. If this is a scam question: reassure them they did the right thing by checking first, and remind them never to click links or share OTPs.`;
+5. If this is a scam question: reassure them they did the right thing by checking first, and remind them never to click links or share OTPs.
+6. LANGUAGE REQUIREMENT: You MUST answer natively in "${targetLang}" (e.g. Hindi in Devanagari script, Tamil in Tamil script, English in plain English) so that text-to-speech reads it smoothly and the elder understands easily.`;
 
     const chatHistory = (history || []).slice(-6).map((msg: any) => ({
       role: msg.sender === 'elder' ? 'user' : 'model',
